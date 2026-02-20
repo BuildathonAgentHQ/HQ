@@ -75,7 +75,16 @@ export default function FinOpsPage() {
         try {
             const res = await fetch(`${API_BASE_URL}/metrics/finops`);
             if (res.ok) {
-                setData(await res.json());
+                const raw = await res.json();
+                // Normalize backend field names to our interface
+                setData({
+                    today_spend: raw.today_spend ?? raw.total_spend_today ?? 0,
+                    monthly_spend: raw.monthly_spend ?? raw.total_spend_30d ?? 0,
+                    avg_cost_per_task: raw.avg_cost_per_task ?? 0,
+                    projected_burn: raw.projected_burn ?? raw.projected_monthly_burn ?? 0,
+                    daily_spend: raw.daily_spend ?? [],
+                    top_tasks: raw.top_tasks ?? raw.top_cost_tasks ?? [],
+                });
             }
         } catch {
             // use fallback
