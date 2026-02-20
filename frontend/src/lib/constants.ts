@@ -12,7 +12,7 @@
 
 /** Base URL for the REST API. */
 export const API_BASE_URL: string =
-    process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000";
+    process.env.NEXT_PUBLIC_API_BASE_URL || process.env.NEXT_PUBLIC_API_URL || "http://localhost:8001/api";
 
 /** WebSocket URL for real-time activity stream. */
 export const WS_URL: string =

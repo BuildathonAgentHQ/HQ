@@ -73,7 +73,7 @@ export default function FinOpsPage() {
 
     const fetchData = useCallback(async () => {
         try {
-            const res = await fetch(`${API_BASE_URL}/api/metrics/finops`);
+            const res = await fetch(`${API_BASE_URL}/metrics/finops`);
             if (res.ok) {
                 setData(await res.json());
             }

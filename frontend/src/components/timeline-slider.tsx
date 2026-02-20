@@ -32,7 +32,7 @@ export function TimelineSlider() {
 
     const fetchCommits = useCallback(async () => {
         try {
-            const res = await fetch(`${API_BASE_URL}/api/timeline`);
+            const res = await fetch(`${API_BASE_URL}/timeline`);
             if (res.ok) {
                 const raw = await res.json();
                 const data = Array.isArray(raw) ? raw.map(normalizeCommit) : [];
@@ -56,7 +56,7 @@ export function TimelineSlider() {
 
         if (idx < commits.length - 1) {
             try {
-                await fetch(`${API_BASE_URL}/api/timeline/checkout`, {
+                await fetch(`${API_BASE_URL}/timeline/checkout`, {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({ commit_hash: commits[idx].hash }),
@@ -71,7 +71,7 @@ export function TimelineSlider() {
         if (!commits) return;
         setSelectedIdx(commits.length - 1);
         try {
-            await fetch(`${API_BASE_URL}/api/timeline/checkout`, {
+            await fetch(`${API_BASE_URL}/timeline/checkout`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ commit_hash: "HEAD" }),

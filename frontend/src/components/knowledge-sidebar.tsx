@@ -37,7 +37,7 @@ export function KnowledgeSidebar() {
     const fetchDocs = useCallback(async () => {
         setLoading(true);
         try {
-            const res = await fetch(`${API_BASE_URL}/api/knowledge/documents`);
+            const res = await fetch(`${API_BASE_URL}/knowledge/documents`);
             if (res.ok) {
                 const data = await res.json();
                 setDocs(data);
@@ -57,7 +57,7 @@ export function KnowledgeSidebar() {
             for (const file of Array.from(files)) {
                 const formData = new FormData();
                 formData.append("file", file);
-                const res = await fetch(`${API_BASE_URL}/api/knowledge/upload`, {
+                const res = await fetch(`${API_BASE_URL}/knowledge/upload`, {
                     method: "POST",
                     body: formData,
                 });
@@ -93,7 +93,7 @@ export function KnowledgeSidebar() {
 
     const handleDelete = async (docId: string) => {
         try {
-            await fetch(`${API_BASE_URL}/api/knowledge/documents/${docId}`, {
+            await fetch(`${API_BASE_URL}/knowledge/documents/${docId}`, {
                 method: "DELETE",
             });
             setDocs((prev) => prev.filter((d) => d.doc_id !== docId));
@@ -147,8 +147,8 @@ export function KnowledgeSidebar() {
                         onDragLeave={() => setDragOver(false)}
                         onDrop={handleDrop}
                         className={`flex flex-col items-center justify-center rounded-lg border-2 border-dashed p-8 transition-colors cursor-pointer ${dragOver
-                                ? "border-indigo-400 bg-indigo-500/10"
-                                : "border-border/40 bg-white/[0.02] hover:border-border/60"
+                            ? "border-indigo-400 bg-indigo-500/10"
+                            : "border-border/40 bg-white/[0.02] hover:border-border/60"
                             }`}
                     >
                         {uploading ? (
