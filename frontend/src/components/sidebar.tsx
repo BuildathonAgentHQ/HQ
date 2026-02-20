@@ -10,47 +10,32 @@ import {
     HeartPulse,
     DollarSign,
     Zap,
+    Settings,
 } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
+import { KnowledgeSidebar } from "@/components/knowledge-sidebar";
 import { cn } from "@/lib/utils";
+import { useWebSocket } from "@/hooks/use-websocket";
+import { WS_URL } from "@/lib/constants";
 
 const NAV_ITEMS = [
     { label: "Dashboard", href: "/", icon: LayoutDashboard },
     { label: "Agent Console", href: "/console", icon: Terminal },
     { label: "PR Radar", href: "/pr-radar", icon: GitPullRequest },
-    { label: "Coverage", href: "/coverage", icon: Shield },
+    { label: "Coverage Map", href: "/coverage", icon: Shield },
     { label: "Repo Health", href: "/repo-health", icon: HeartPulse },
     { label: "FinOps", href: "/finops", icon: DollarSign },
 ] as const;
 
-interface ConnectionDotProps {
-    connected: boolean;
-}
-
-function ConnectionDot({ connected }: ConnectionDotProps) {
-    return (
-        <span className="flex items-center gap-2 text-xs text-muted-foreground">
-            <span
-                className={cn(
-                    "inline-block h-2 w-2 rounded-full",
-                    connected
-                        ? "bg-emerald-500 shadow-[0_0_6px_theme(colors.emerald.500)]"
-                        : "bg-red-500 shadow-[0_0_6px_theme(colors.red.500)]"
-                )}
-            />
-            {connected ? "Connected" : "Disconnected"}
-        </span>
-    );
-}
-
 export function Sidebar() {
     const pathname = usePathname();
+    const { isConnected } = useWebSocket(WS_URL);
 
     return (
         <aside className="fixed inset-y-0 left-0 z-40 flex w-64 flex-col border-r border-border/40 bg-[#0B1120]">
             {/* ── Brand ────────────────────────────────────────────── */}
             <div className="flex items-center gap-3 px-6 py-5">
-                <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br from-indigo-500 to-cyan-400">
+                <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br from-indigo-500 to-cyan-400 shadow-lg shadow-indigo-500/20">
                     <Zap className="h-5 w-5 text-white" />
                 </div>
                 <div>
@@ -83,12 +68,30 @@ export function Sidebar() {
                         </Link>
                     );
                 })}
+
+                <Separator className="opacity-10 my-2" />
+
+                {/* Knowledge Base — opens Sheet */}
+                <KnowledgeSidebar />
             </nav>
 
             {/* ── Footer ───────────────────────────────────────────── */}
-            <div className="border-t border-border/30 px-6 py-4 space-y-2">
-                <ConnectionDot connected={false} />
-                <p className="text-[10px] text-muted-foreground/60">v0.1.0</p>
+            <div className="border-t border-border/30 px-6 py-4 space-y-3">
+                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                    <span
+                        className={cn(
+                            "inline-block h-2 w-2 rounded-full",
+                            isConnected
+                                ? "bg-emerald-500 shadow-[0_0_6px_theme(colors.emerald.500)]"
+                                : "bg-red-500 shadow-[0_0_6px_theme(colors.red.500)]"
+                        )}
+                    />
+                    {isConnected ? "Connected" : "Disconnected"}
+                </div>
+                <div className="flex items-center justify-between">
+                    <p className="text-[10px] text-muted-foreground/60">v0.1.0</p>
+                    <Settings className="h-3.5 w-3.5 text-muted-foreground/40 cursor-pointer hover:text-white transition-colors" />
+                </div>
             </div>
         </aside>
     );

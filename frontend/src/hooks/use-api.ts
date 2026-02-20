@@ -29,15 +29,15 @@ async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
 // ── Task endpoints ─────────────────────────────────────────────────────────
 
 export async function getTasks(): Promise<Task[]> {
-    return apiFetch<Task[]>("/api/tasks/");
+    return apiFetch<Task[]>("/tasks/");
 }
 
 export async function getTask(id: string): Promise<Task> {
-    return apiFetch<Task>(`/api/tasks/${id}`);
+    return apiFetch<Task>(`/tasks/${id}`);
 }
 
 export async function createTask(data: TaskCreate): Promise<Task> {
-    return apiFetch<Task>("/api/tasks/", {
+    return apiFetch<Task>("/tasks/", {
         method: "POST",
         body: JSON.stringify(data),
     });
@@ -46,27 +46,27 @@ export async function createTask(data: TaskCreate): Promise<Task> {
 // ── Metrics endpoints ──────────────────────────────────────────────────────
 
 export async function getRadarMetrics(): Promise<TelemetryMetrics> {
-    return apiFetch<TelemetryMetrics>("/api/metrics/radar");
+    return apiFetch<TelemetryMetrics>("/metrics/radar");
 }
 
 export async function getLeaderboard(): Promise<AgentLeaderboardEntry[]> {
-    return apiFetch<AgentLeaderboardEntry[]>("/api/metrics/leaderboard");
+    return apiFetch<AgentLeaderboardEntry[]>("/metrics/leaderboard");
 }
 
 // ── Control-plane endpoints ────────────────────────────────────────────────
 
 export async function getPRScores(): Promise<PRRiskScore[]> {
-    return apiFetch<PRRiskScore[]>("/api/control-plane/prs");
+    return apiFetch<PRRiskScore[]>("/control-plane/prs");
 }
 
 export async function getCoverage(): Promise<CoverageReport> {
-    return apiFetch<CoverageReport>("/api/control-plane/coverage");
+    return apiFetch<CoverageReport>("/control-plane/coverage");
 }
 
 export async function getRepoHealth(): Promise<RepoHealthReport> {
-    return apiFetch<RepoHealthReport>("/api/control-plane/health");
+    return apiFetch<RepoHealthReport>("/control-plane/health");
 }
 
 export async function getActions(): Promise<NextBestAction[]> {
-    return apiFetch<NextBestAction[]>("/api/control-plane/actions");
+    return apiFetch<NextBestAction[]>("/control-plane/actions");
 }
