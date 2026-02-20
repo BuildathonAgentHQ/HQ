@@ -9,11 +9,12 @@ falls back when engine binaries are unavailable (dev machines).
 from __future__ import annotations
 
 import logging
-from typing import Any
 
 from fastapi import APIRouter, HTTPException
 
-from shared.schemas import Task, TaskCreate
+from shared.events import EventType
+from shared.schemas import GuardrailEvent, Task, TaskCreate, WebSocketEvent
+from backend.app.guardrails.escalation import EscalationManager
 
 from backend.app.orchestrator.task_manager import TaskManager
 from backend.app.orchestrator.process_manager import ProcessManager
@@ -26,6 +27,21 @@ router = APIRouter()
 # ── Module-level singletons (created once at import time) ───────────────────
 task_manager = TaskManager(seed_mock=True)
 process_manager = ProcessManager(event_router=event_router)
+escalation_manager = EscalationManager(process_manager=process_manager, event_router=event_router)
+
+async def _on_guardrail_triggered(ws_event: WebSocketEvent) -> None:
+    """Invoked globally when the JanitorWatcher emits a guardrail event."""
+    try:
+        ge = GuardrailEvent(**ws_event.payload)
+        if ge.passed:
+            await escalation_manager.handle_guardrail_success(ge.task_id)
+        else:
+            await escalation_manager.handle_guardrail_failure(ge.task_id, ge)
+    except Exception as e:
+        logger.error(f"Failed to process guardrail event in orchestrator: {e}")
+
+event_router.register_handler(EventType.GUARDRAIL_TRIGGERED, _on_guardrail_triggered)
+
 
 
 # ═══════════════════════════════════════════════════════════════════════════════

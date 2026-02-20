@@ -1,91 +1,54 @@
 """
-backend/app/guardrails/approval_gate.py — Approval event emission.
+backend/app/guardrails/approval_gate.py — Manages paused tasks awaiting human approval.
 
-Manages the human-in-the-loop approval workflow for destructive operations.
-Pauses agent execution until a human approves or rejects the action.
+Holds ApprovalRequests dynamically in memory while tasks are paused, allowing
+the API/WebSocket routes to query statuses or resolve actions.
 """
 
 from __future__ import annotations
 
-import asyncio
+import logging
 from typing import Optional
 
-from shared.schemas import ApprovalRequest, ApprovalResponse, ApprovalStatus, RiskLevel
+from shared.schemas import ApprovalRequest
+
+logger = logging.getLogger(__name__)
 
 
 class ApprovalGate:
-    """Manages pending approval requests and their resolution.
-
-    Attributes:
-        pending: Dict mapping request_id → ApprovalRequest.
-        _events: Dict mapping request_id → asyncio.Event for waiting.
-    """
+    """Manages the state of tasks paused for human-in-the-loop review."""
 
     def __init__(self) -> None:
-        self.pending: dict[str, ApprovalRequest] = {}
-        self._events: dict[str, asyncio.Event] = {}
-        self._responses: dict[str, ApprovalResponse] = {}
+        # Maps task_id -> ApprovalRequest object
+        self._pending_approvals: dict[str, ApprovalRequest] = {}
 
-    async def request_approval(
-        self,
-        task_id: str,
-        action: str,
-        risk_level: RiskLevel,
-        command: Optional[str] = None,
-        timeout: float = 300.0,
-    ) -> ApprovalResponse:
-        """Create an approval request and wait for human response.
-
-        This method blocks (async) until the human approves, rejects,
-        or the request times out.
-
-        Args:
-            task_id: The task requiring approval.
-            action: Description of the action needing approval.
-            risk_level: Risk classification of the action.
-            command: Optional raw command string.
-            timeout: Seconds to wait before auto-rejecting (default 5 min).
-
-        Returns:
-            ApprovalResponse with the human's decision.
-
-        TODO:
-            - Create ApprovalRequest and store in pending
-            - Emit APPROVAL_REQUIRED event via WebSocket
-            - Wait on asyncio.Event with timeout
-            - Handle timeout as auto-rejection
-            - Clean up on resolution
+    def add_pending(self, task_id: str, request: ApprovalRequest) -> None:
+        """Store the approval request and mark the task as explicitly paused.
+        
+        Note: The actual pausing of the async task happens in the Engine Runner
+        after this yields the payload to the frontend.
         """
-        # TODO: Implement approval request flow
-        raise NotImplementedError("ApprovalGate.request_approval not yet implemented")
+        self._pending_approvals[task_id] = request
+        logger.info(f"Task {task_id} paused awaiting human approval for: {request.action_type}")
 
-    async def resolve(self, response: ApprovalResponse) -> Optional[ApprovalRequest]:
-        """Resolve a pending approval request.
-
+    def resolve(self, task_id: str, option: str) -> Optional[str]:
+        """Remove the task from pending and return the user's choice.
+        
         Args:
-            response: ApprovalResponse from the frontend.
-
+            task_id: The ID of the pending task.
+            option: The chosen resolution string (e.g. 'Approve', 'Reject').
+            
         Returns:
-            The resolved ApprovalRequest, or None if not found.
-
-        TODO:
-            - Update ApprovalRequest status to APPROVED or REJECTED
-            - Store response and set the asyncio.Event
-            - Emit APPROVAL_RESOLVED event via WebSocket
+            The chosen option string if the task was found, else None.
         """
-        # TODO: Implement resolution
-        raise NotImplementedError("ApprovalGate.resolve not yet implemented")
+        if task_id in self._pending_approvals:
+            del self._pending_approvals[task_id]
+            logger.info(f"Task {task_id} approval resolved with: '{option}'")
+            return option
+            
+        logger.warning(f"Attempted to resolve task {task_id} but no pending approval was found.")
+        return None
 
-    def get_pending(self, task_id: Optional[str] = None) -> list[ApprovalRequest]:
-        """List pending approval requests.
-
-        Args:
-            task_id: Optional filter by task ID.
-
-        Returns:
-            List of pending ApprovalRequest objects.
-        """
-        requests = list(self.pending.values())
-        if task_id:
-            requests = [r for r in requests if r.task_id == task_id]
-        return requests
+    def get_pending(self, task_id: str) -> Optional[ApprovalRequest]:
+        """Check if a specific task has a pending approval."""
+        return self._pending_approvals.get(task_id)

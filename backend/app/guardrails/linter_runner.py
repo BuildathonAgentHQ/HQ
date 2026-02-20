@@ -1,92 +1,113 @@
 """
-backend/app/guardrails/linter_runner.py — ruff/eslint/bandit execution.
+backend/app/guardrails/linter_runner.py — Executes code linting and security checks.
 
-Runs lint tools against files changed by agents and reports results
-via the WebSocket event stream.
+Runs ruff, bandit, or eslint depending on the file extension and formats the
+output into a precise error message that the agent can read and fix.
 """
 
 from __future__ import annotations
 
 import asyncio
-from typing import Optional
+import logging
+from pathlib import Path
 
-from shared.schemas import LintResult
+from shared.schemas import GuardrailEvent
+
+logger = logging.getLogger(__name__)
 
 
 class LinterRunner:
-    """Executes linting tools and parses their output.
+    """Executes subprocess linters and parses the output for GuardrailEvents."""
 
-    Supports ruff (Python), eslint (JS/TS), and bandit (Python security).
-    """
+    def __init__(self) -> None:
+        pass
 
-    async def run_ruff(self, file_path: str, task_id: str) -> LintResult:
-        """Run ruff linter on a Python file.
+    async def _run_subprocess(self, cmd: list[str]) -> tuple[int, str]:
+        """Run a shell command asynchronously and return (returncode, stdout)."""
+        try:
+            process = await asyncio.create_subprocess_exec(
+                *cmd,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.STDOUT
+            )
+            stdout, _ = await process.communicate()
+            output = stdout.decode("utf-8").strip() if stdout else ""
+            return process.returncode or 0, output
+        except FileNotFoundError:
+            tool = cmd[0]
+            logger.warning(f"Linter '{tool}' not found. Skipping.")
+            return 0, ""
+        except Exception as e:
+            logger.error(f"Error executing {cmd}: {e}")
+            return 0, ""
 
-        Args:
-            file_path: Path to the Python file to lint.
-            task_id: The task that produced the file change.
+    def _extract_first_error(self, tool: str, output: str) -> str:
+        """Extract a clean, readable error directly from the output."""
+        lines = [line.strip() for line in output.split("\n") if line.strip()]
+        if not lines:
+            return f"{tool}: Unknown error"
+            
+        # Return the first meaningful line containing the failure info
+        for line in lines:
+            # Skip summary/header lines if obvious
+            if line.startswith("Summary") or line.startswith("Run started"):
+                continue
+            return f"{tool}: {line}"
+            
+        return f"{tool}: {lines[0]}"
 
-        Returns:
-            LintResult with parsed issues.
-
-        TODO:
-            - Execute `ruff check --output-format=json <file_path>`
-            - Parse JSON output into LintIssue objects
-            - Emit LINT_RESULT event via WebSocket
+    async def run_checks(self, file_path: str) -> list[GuardrailEvent]:
+        """Run the appropriate linters and return the events.
+        
+        Note: The signature in instructions says -> GuardrailEvent, but if we run
+        both ruff and bandit, returning humans multiple failures is easier. We will
+        return one GuardrailEvent per failed tool, or a single 'passed' one.
+        However, the instruction says:
+        'If ANY check fails: Return GuardrailEvent with passed=False... If all pass: Return Event with passed=True'
+        Therefore, we will return exactly ONE event representing the worst outcome.
         """
-        # TODO: Implement ruff execution
-        raise NotImplementedError("LinterRunner.run_ruff not yet implemented")
+        path = Path(file_path)
+        ext = path.suffix.lower()
+        
+        # We need a fallback task_id since this might run orthogonally
+        task_id = "janitor_background_lint"
 
-    async def run_eslint(self, file_path: str, task_id: str) -> LintResult:
-        """Run eslint on a JavaScript/TypeScript file.
+        if ext == ".py":
+            # 1. Ruff
+            code, ruff_out = await self._run_subprocess(["ruff", "check", file_path])
+            if code != 0 and ruff_out:
+                msg = self._extract_first_error("ruff", ruff_out)
+                return GuardrailEvent(
+                    task_id=task_id, file_path=file_path, check_type="lint",
+                    passed=False, error_msg=msg, strike_count=1
+                )
+                
+            # 2. Bandit
+            code, bandit_out = await self._run_subprocess(["bandit", "-r", file_path, "-f", "custom", "--msg-template", "{line}: {test_id} {msg}"])
+            if code != 0 and bandit_out:
+                msg = self._extract_first_error("bandit", bandit_out)
+                return GuardrailEvent(
+                    task_id=task_id, file_path=file_path, check_type="security",
+                    passed=False, error_msg=msg, strike_count=1
+                )
 
-        Args:
-            file_path: Path to the JS/TS file to lint.
-            task_id: The task that produced the file change.
+        elif ext in (".js", ".ts", ".jsx", ".tsx"):
+            # Node / Frontend linting
+            # For this sprint we assume we are running eslint in the current relative context
+            code, eslint_out = await self._run_subprocess(["npx", "eslint", file_path])
+            if code != 0 and eslint_out:
+                msg = self._extract_first_error("eslint", eslint_out)
+                return GuardrailEvent(
+                    task_id=task_id, file_path=file_path, check_type="lint",
+                    passed=False, error_msg=msg, strike_count=1
+                )
 
-        Returns:
-            LintResult with parsed issues.
-
-        TODO:
-            - Execute `npx eslint --format=json <file_path>`
-            - Parse JSON output into LintIssue objects
-            - Emit LINT_RESULT event via WebSocket
-        """
-        # TODO: Implement eslint execution
-        raise NotImplementedError("LinterRunner.run_eslint not yet implemented")
-
-    async def run_bandit(self, file_path: str, task_id: str) -> LintResult:
-        """Run bandit security linter on a Python file.
-
-        Args:
-            file_path: Path to the Python file to scan.
-            task_id: The task that produced the file change.
-
-        Returns:
-            LintResult with security issues.
-
-        TODO:
-            - Execute `bandit -f json <file_path>`
-            - Parse JSON output into LintIssue objects
-            - Emit LINT_RESULT event with severity info
-        """
-        # TODO: Implement bandit execution
-        raise NotImplementedError("LinterRunner.run_bandit not yet implemented")
-
-    async def lint_file(self, file_path: str, task_id: str) -> list[LintResult]:
-        """Auto-detect file type and run appropriate linters.
-
-        Args:
-            file_path: Path to the file to lint.
-            task_id: The task context.
-
-        Returns:
-            List of LintResult objects from all applicable linters.
-
-        TODO:
-            - Detect file extension (.py → ruff + bandit, .ts/.tsx → eslint)
-            - Run applicable linters concurrently
-            - Aggregate results
-        """
-        # TODO: Implement auto-detection and concurrent linting
-        return []
+        # Base case: Everything passed
+        return GuardrailEvent(
+            task_id=task_id,
+            file_path=file_path,
+            check_type="lint",
+            passed=True,
+            error_msg="",
+            strike_count=0
+        )

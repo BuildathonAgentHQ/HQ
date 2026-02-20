@@ -1,70 +1,93 @@
 """
-backend/app/guardrails/file_watcher.py — watchdog-based file monitoring.
+backend/app/guardrails/file_watcher.py — Background repository file watcher.
 
-Monitors the working directory during agent execution and emits
-FILE_CHANGED events for each created, modified, or deleted file.
+Monitors the repository for code modifications and automatically triggers the
+LinterRunner, pumping GuardrailEvents straight to the frontend via the EventRouter.
 """
 
 from __future__ import annotations
 
-from typing import Callable, Optional
+import asyncio
+import logging
+from pathlib import Path
+from typing import Any
 
-from shared.schemas import FileChangeEvent
+from watchdog.events import FileSystemEvent, FileSystemEventHandler
+from watchdog.observers import Observer
+
+from backend.app.guardrails.linter_runner import LinterRunner
+
+logger = logging.getLogger(__name__)
 
 
-class FileWatcher:
-    """Watches a directory tree for file changes using the watchdog library.
+class GuardrailEventHandler(FileSystemEventHandler):
+    """Custom handler interpreting watchdog filesystem events."""
 
-    Attributes:
-        watch_path: Root directory being monitored.
-        on_change: Callback invoked with FileChangeEvent for each change.
-        observer: watchdog Observer instance.
-    """
+    def __init__(self, runner: LinterRunner, event_router: Any, loop: asyncio.AbstractEventLoop) -> None:
+        self.runner = runner
+        self.event_router = event_router
+        self.loop = loop
+        
+        self._valid_extensions = {".py", ".js", ".ts", ".jsx", ".tsx"}
+        self._ignored_dirs = {".git", ".venv", "venv", "node_modules", "__pycache__", ".next"}
 
-    def __init__(
-        self,
-        watch_path: str,
-        on_change: Optional[Callable[[FileChangeEvent], None]] = None,
-    ) -> None:
+    def on_modified(self, event: FileSystemEvent) -> None:
+        """Triggered when a file or directory is modified."""
+        if event.is_directory:
+            return
+
+        file_path = Path(event.src_path)
+        
+        # Exclude ignored directories
+        if any(ignored in file_path.parts for ignored in self._ignored_dirs):
+            return
+            
+        # Exclude non-code files
+        if file_path.suffix.lower() not in self._valid_extensions:
+            return
+            
+        logger.info(f"JanitorWatcher detected file modification: {file_path}")
+        
+        # Schedule the async check in the main event loop
+        asyncio.run_coroutine_threadsafe(self._handle_file(str(file_path)), self.loop)
+
+    async def _handle_file(self, file_path: str) -> None:
+        """Run linters and emit the resulting event via the event router."""
+        event = await self.runner.run_checks(file_path)
+        logger.debug(f"Linting completed for {file_path}: Passed={event.passed}")
+        
+        try:
+            from shared.events import EventType, create_ws_event
+            ws_event = create_ws_event(
+                task_id=event.task_id,
+                event_type=EventType.GUARDRAIL_TRIGGERED,
+                payload=event.model_dump(mode="json"),
+            )
+            await self.event_router.emit(ws_event)
+        except Exception as e:
+            logger.error(f"Failed to emit GuardrailEvent: {e}")
+
+
+class JanitorWatcher:
+    """Manages the watchdog observer thread running in the background."""
+
+    def __init__(self, watch_path: str, event_router: Any) -> None:
         self.watch_path = watch_path
-        self.on_change = on_change
-        self._observer = None  # TODO: Initialize watchdog.observers.Observer
+        self.event_router = event_router
+        self.runner = LinterRunner()
+        self.observer = Observer()
+        self.loop = asyncio.get_event_loop()
+        
+        self.handler = GuardrailEventHandler(self.runner, self.event_router, self.loop)
+        self.observer.schedule(self.handler, self.watch_path, recursive=True)
 
-    async def start(self) -> None:
-        """Start watching the directory tree.
+    def start(self) -> None:
+        """Start the background watchdog thread."""
+        logger.info(f"Starting JanitorWatcher on directory: {self.watch_path}")
+        self.observer.start()
 
-        TODO:
-            - Create a watchdog Observer and EventHandler
-            - Schedule recursive watching on watch_path
-            - Filter out __pycache__, node_modules, .git, etc.
-            - Start the observer in a background thread
-        """
-        # TODO: Implement file watching
-        raise NotImplementedError("FileWatcher.start not yet implemented")
-
-    async def stop(self) -> None:
-        """Stop the file watcher and clean up.
-
-        TODO:
-            - Stop and join the watchdog observer
-        """
-        # TODO: Implement stop
-        raise NotImplementedError("FileWatcher.stop not yet implemented")
-
-    def _handle_event(self, event_type: str, file_path: str, task_id: str) -> FileChangeEvent:
-        """Create a FileChangeEvent from a watchdog event.
-
-        Args:
-            event_type: One of "created", "modified", "deleted".
-            file_path: Absolute path to the changed file.
-            task_id: The task that triggered the change.
-
-        Returns:
-            FileChangeEvent to broadcast via WebSocket.
-
-        TODO:
-            - Build FileChangeEvent and call on_change callback
-            - Trigger linting for modified files
-        """
-        # TODO: Implement event creation
-        raise NotImplementedError("FileWatcher._handle_event not yet implemented")
+    def stop(self) -> None:
+        """Stop the background watchdog thread cleanly."""
+        logger.info("Stopping JanitorWatcher.")
+        self.observer.stop()
+        self.observer.join()
