@@ -1,0 +1,32 @@
+{
+    "_comment_file": "Model Context Protocol (MCP) configuration for Nia Server integration.",
+    "_comment_purpose": "This file is read by agents (like claude-code) to connect to tools providing real-time codebase awareness.",
+    "mcpServers": {
+        "nia-context": {
+            "_comment_server_name": "The Nia MCP server providing context to the agent.",
+            "_comment_server_url": "Configurable via environment variable NIA_MCP_URL (default: http://localhost:3001). We use npx to launch a generic MCP bridge or connect to it.",
+            "command": "npx",
+            "args": [
+                "-y",
+                "@modelcontextprotocol/server-sse",
+                "--url",
+                "${NIA_MCP_URL:-http://localhost:3001}/sse"
+            ],
+            "env": {
+                "NIA_MCP_URL": "http://localhost:3001"
+            },
+            "_comment_capabilities": [
+                "Repository indexing (vector embeddings of all source files)",
+                "Dependency graph generation (import/export relationships)",
+                "Architecture awareness (module structure, API boundaries)",
+                "Semantic search over the codebase"
+            ],
+            "_comment_tools": {
+                "search_codebase": "search_codebase(query: str) -> relevant code snippets and file paths",
+                "get_dependencies": "get_dependencies(file_path: str) -> list of files that import/are imported by this file",
+                "get_architecture": "get_architecture() -> high-level module structure summary",
+                "get_recent_changes": "get_recent_changes(hours: int) -> files changed in the last N hours"
+            }
+        }
+    }
+}
