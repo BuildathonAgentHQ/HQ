@@ -1,30 +1,72 @@
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+"use client";
+
+import { useEffect, useState } from "react";
+import { getTasks } from "@/hooks/use-api";
+import type { Task } from "@/lib/types";
+
+import { TaskCard } from "@/components/task-card";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Badge } from "@/components/ui/badge";
 import { Terminal } from "lucide-react";
 
 export default function ConsolePage() {
+    const [tasks, setTasks] = useState<Task[] | null>(null);
+
+    useEffect(() => {
+        getTasks()
+            .then(setTasks)
+            .catch(() => { });
+        const id = setInterval(() => {
+            getTasks()
+                .then(setTasks)
+                .catch(() => { });
+        }, 10_000);
+        return () => clearInterval(id);
+    }, []);
+
     return (
-        <div className="flex h-[calc(100vh-2rem)] flex-col gap-6">
-            <div className="flex flex-col gap-2">
-                <h1 className="text-3xl font-bold tracking-tight text-white flex items-center gap-3">
-                    <Terminal className="h-8 w-8 text-indigo-400" />
+        <div className="space-y-6">
+            <div>
+                <h1 className="text-2xl font-bold tracking-tight flex items-center gap-3">
+                    <Terminal className="h-7 w-7 text-indigo-400" />
                     Agent Console
                 </h1>
-                <p className="text-muted-foreground">
-                    Deep dive into active agent sub-processes and execute manual overrides.
+                <p className="text-sm text-muted-foreground mt-1">
+                    All running and completed tasks
                 </p>
             </div>
 
-            <Card className="flex-1 bg-white/5 border-white/10 flex items-center justify-center">
-                <CardContent className="flex flex-col items-center gap-4 text-center p-12">
-                    <Terminal className="h-16 w-16 text-muted-foreground/30 mb-4" />
-                    <CardTitle className="text-xl">Interactive Console Coming Soon</CardTitle>
-                    <CardDescription className="max-w-md">
-                        This view will house the interactive pseudo-terminal allowing you to
-                        directly interface with the active agent, inject Janitor Protocol fixes,
-                        and monitor raw standard output.
-                    </CardDescription>
-                </CardContent>
-            </Card>
+            {/* Status filter */}
+            <div className="flex gap-2">
+                {["all", "running", "pending", "success", "failed", "suspended"].map(
+                    (s) => (
+                        <Badge
+                            key={s}
+                            variant="secondary"
+                            className="capitalize cursor-pointer hover:bg-white/10 transition-colors"
+                        >
+                            {s}
+                        </Badge>
+                    )
+                )}
+            </div>
+
+            {/* Task grid */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {!tasks ? (
+                    Array.from({ length: 6 }).map((_, i) => (
+                        <Skeleton key={i} className="h-32 w-full rounded-lg" />
+                    ))
+                ) : tasks.length === 0 ? (
+                    <div className="col-span-full flex items-center justify-center h-64">
+                        <p className="text-sm text-muted-foreground/60">
+                            No tasks yet. Deploy agents from the Dashboard.
+                        </p>
+                    </div>
+                ) : (
+                    tasks.map((t) => <TaskCard key={t.id} task={t} />)
+                )}
+            </div>
         </div>
     );
 }
