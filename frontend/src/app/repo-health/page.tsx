@@ -15,6 +15,7 @@ import {
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { API_BASE_URL } from "@/lib/constants";
 
 export default function RepoHealthPage() {
     const [healthData, setHealthData] = useState<any>(null);
@@ -25,8 +26,8 @@ export default function RepoHealthPage() {
         async function fetchAll() {
             try {
                 const [healthRes, actionsRes] = await Promise.all([
-                    fetch("/api/control-plane/health"),
-                    fetch("/api/control-plane/actions")
+                    fetch(`${API_BASE_URL}/control-plane/health`),
+                    fetch(`${API_BASE_URL}/control-plane/actions`)
                 ]);
 
                 if (healthRes.ok) setHealthData(await healthRes.json());
@@ -40,32 +41,39 @@ export default function RepoHealthPage() {
         fetchAll();
     }, []);
 
-    const executeAction = async (action: any) => {
-        // Map the NextBestAction schema back to a TaskCreate via the Orchestrator
-        // In our backend design, the orchestrator POST /api/tasks can take raw input,
-        // but the recommendation engine has `create_agent_task(NextBestAction)`.
-        // For simplicity in the frontend demo, we'll hit the standard orchestrator 
-        // endpoint with the generated description to trigger the agent.
+    const [dispatching, setDispatching] = useState<string | null>(null);
+    const [dispatchResult, setDispatchResult] = useState<Record<string, any>>({});
 
-        let agentType = "general";
-        if (action.action_type === "add_tests" || action.action_type === "fix_flaky") agentType = "test_writer";
-        if (action.action_type === "refactor") agentType = "refactor";
-        if (action.action_type === "update_docs") agentType = "doc";
+    const executeAction = async (action: any) => {
+        const key = `${action.action_type}-${action.target}`;
+        setDispatching(key);
+        setDispatchResult((prev) => ({ ...prev, [key]: undefined }));
 
         try {
-            await fetch("/api/tasks/", {
+            const res = await fetch(`${API_BASE_URL}/swarm/dispatch`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
-                    task: `Control Plane Action Item: [${action.action_type}] on target [${action.target}]. Context: ${action.description}`,
-                    engine: "claude-code",
-                    agent_type: agentType,
-                    budget_limit: 3.0 // Autonomous budget for auto-fixing
-                })
+                    action_type: action.action_type,
+                    description: action.description,
+                    target: action.target,
+                }),
             });
-            alert(`Agent successfully dispatched to execute: ${action.action_type}!`);
-        } catch (e) {
-            alert("Failed to execute action.");
+
+            if (!res.ok) {
+                const err = await res.json().catch(() => ({ detail: res.statusText }));
+                throw new Error(err.detail || "Dispatch failed");
+            }
+
+            const data = await res.json();
+            setDispatchResult((prev) => ({ ...prev, [key]: data }));
+        } catch (e: any) {
+            setDispatchResult((prev) => ({
+                ...prev,
+                [key]: { status: "error", message: e.message },
+            }));
+        } finally {
+            setDispatching(null);
         }
     };
 
@@ -151,13 +159,37 @@ export default function RepoHealthPage() {
                                     </div>
                                     <div className="flex flex-col items-end gap-2">
                                         <span className="text-xs text-zinc-500 whitespace-nowrap">Est. Effort: {action.estimated_effort}</span>
-                                        <Button
-                                            size="sm"
-                                            className="bg-indigo-600 hover:bg-indigo-700 text-white w-full sm:w-auto"
-                                            onClick={() => executeAction(action)}
-                                        >
-                                            Dispatch Agent
-                                        </Button>
+                                        {(() => {
+                                            const key = `${action.action_type}-${action.target}`;
+                                            const result = dispatchResult[key];
+                                            const isRunning = dispatching === key;
+
+                                            if (result?.status === "dispatched") {
+                                                return (
+                                                    <span className="text-xs text-green-400 text-right max-w-[200px]">
+                                                        {result.message}
+                                                    </span>
+                                                );
+                                            }
+                                            if (result?.status === "error") {
+                                                return (
+                                                    <span className="text-xs text-red-400 text-right max-w-[200px]">
+                                                        {result.message}
+                                                    </span>
+                                                );
+                                            }
+
+                                            return (
+                                                <Button
+                                                    size="sm"
+                                                    className="bg-indigo-600 hover:bg-indigo-700 text-white w-full sm:w-auto"
+                                                    disabled={isRunning}
+                                                    onClick={() => executeAction(action)}
+                                                >
+                                                    {isRunning ? "Dispatching…" : "Dispatch Agent"}
+                                                </Button>
+                                            );
+                                        })()}
                                     </div>
                                 </div>
                             )) : (

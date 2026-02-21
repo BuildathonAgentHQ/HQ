@@ -46,6 +46,88 @@ class UpdateIssueRequest(BaseModel):
     status: Literal["open", "fixing", "fixed", "dismissed"]
 
 
+class DispatchAgentRequest(BaseModel):
+    """One-shot request: describe the action and we plan → execute → PR."""
+    action_type: str
+    description: str
+    target: str
+    repo_id: Optional[str] = None
+
+
+# ═════════════════════════════════════════════════════════════════════════════
+#  Dispatch — one-shot plan + execute + PR
+# ═════════════════════════════════════════════════════════════════════════════
+
+
+@router.post("/dispatch", response_model=dict[str, Any])
+async def dispatch_agent(request: Request, body: DispatchAgentRequest) -> dict[str, Any]:
+    """One-click dispatch: creates a swarm plan, executes it, applies fixes, and opens a PR.
+
+    This is the endpoint behind the "Dispatch Agent" button on the Repo Health
+    and Coverage Map pages.  It runs the full pipeline asynchronously and
+    returns immediately with a tracking plan_id.
+    """
+    orchestrator: SwarmOrchestrator = request.app.state.swarm_orchestrator
+    repo_manager: RepoManager = request.app.state.repo_manager
+
+    repo_id = body.repo_id
+    if not repo_id:
+        repos = await repo_manager.list_repos()
+        if not repos:
+            raise HTTPException(400, "No repositories connected. Connect one first on the Repositories page.")
+        repo_id = repos[0].id
+
+    agent_type_map = {
+        "add_tests": "test_writer",
+        "fix_flaky": "test_writer",
+        "refactor": "refactor",
+        "update_docs": "doc_writer",
+        "split_pr": "fix_generator",
+    }
+
+    agent_type = agent_type_map.get(body.action_type, "fix_generator")
+
+    issue = CodeIssue(
+        repo_id=repo_id,
+        file_path=body.target,
+        issue_type="testing" if "test" in body.action_type else "refactor",
+        severity="high" if body.action_type in ("fix_flaky", "add_tests") else "medium",
+        description=body.description,
+        suggestion=f"Auto-fix via {agent_type} agent",
+    )
+
+    plan = await orchestrator.plan_fix(repo_id, [issue])
+
+    if plan.tasks:
+        for t in plan.tasks:
+            t.agent_type = agent_type
+
+    async def _run_pipeline() -> None:
+        try:
+            await orchestrator.execute_plan(plan.id)
+            fix_ids = [
+                fp.id for fp in orchestrator.fix_proposals.values()
+                if fp.repo_id == repo_id and fp.status == "proposed"
+            ]
+            if fix_ids:
+                result = await orchestrator.apply_fixes(plan.id, fix_ids)
+                logger.info("Dispatch auto-PR created: %s", result.get("pr_url", "none"))
+            else:
+                logger.info("Dispatch completed for plan %s but no fixes proposed", plan.id)
+        except Exception:
+            logger.exception("Dispatch pipeline failed for plan %s", plan.id)
+
+    asyncio.create_task(_run_pipeline())
+
+    return {
+        "plan_id": plan.id,
+        "status": "dispatched",
+        "agent_type": agent_type,
+        "message": f"Agent dispatched. Plan has {len(plan.tasks)} task(s). "
+                   "A PR will be created automatically when the agent finishes.",
+    }
+
+
 # ═════════════════════════════════════════════════════════════════════════════
 #  Plan CRUD
 # ═════════════════════════════════════════════════════════════════════════════

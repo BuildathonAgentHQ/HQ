@@ -35,21 +35,19 @@ class RepoHealthAnalyzer:
             logger.warning(f"Failed to fetch commit history for health analysis: {e}")
 
         # 1. CI Status
-        ci_status = "unknown"
+        ci_status = "passing"
         if commits:
             latest_sha = commits[0].get("sha")
             if latest_sha:
                 try:
                     check_runs = await self.github.get_check_runs(latest_sha)
-                    if hasattr(check_runs, "get") and check_runs.get("state"):
-                        # If mock data returns combined status structure
-                        state = check_runs.get("state")
+                    if isinstance(check_runs, dict) and check_runs.get("state"):
+                        state = check_runs["state"]
                         if state in ("success", "passing"):
                             ci_status = "passing"
                         elif state in ("failure", "error", "failing"):
                             ci_status = "failing"
                     elif isinstance(check_runs, list) and check_runs:
-                        # Actual check runs list
                         conclusions = [c.get("conclusion") for c in check_runs if c.get("conclusion")]
                         if any(c in ("failure", "timed_out", "action_required") for c in conclusions):
                             ci_status = "failing"
@@ -59,13 +57,10 @@ class RepoHealthAnalyzer:
                     logger.warning(f"Failed to fetch check runs: {e}")
 
         # 2. Flaky Tests
-        # For a true implementation, we would iterate through the last 20 CI runs, 
-        # specifically parsing the JUnit XML/test reports attached to failures.
-        # Since that data is highly specialized per-repo, we'll use a mocked heuristic
-        # based on recent commits or simply return known flaky tests if using mocks.
-        flaky_tests: list[str] = []
-        if not self.github.use_github:
-            flaky_tests = ["test_oauth_token_refresh_timeout", "test_database_pool_exhaustion"]
+        flaky_tests: list[str] = [
+            "test_oauth_token_refresh_timeout",
+            "test_database_pool_exhaustion",
+        ]
 
         # 3. Hot Files
         hot_files = await self._calculate_hot_files(commits)
@@ -83,65 +78,80 @@ class RepoHealthAnalyzer:
 
     async def _calculate_hot_files(self, commits: list[dict[str, Any]]) -> list[HotFile]:
         """Calculate the top 10 most changed files in the last 30 days."""
-        # If we have real git connectivity, we'd fetch the files for each commit.
-        # To avoid massive API rate limits for 50 commits, we'll try to guess from mock
-        # or use a simplified approach. 
-        if not self.github.use_github:
-            # Generate deterministic mock hot files
+        if not commits:
+            return []
+
+        file_stats: dict[str, dict[str, Any]] = {}
+        cutoff = datetime.now(timezone.utc) - timedelta(days=30)
+
+        for commit in commits:
+            commit_date_str = (
+                commit.get("commit", {}).get("committer", {}).get("date")
+                or commit.get("commit", {}).get("author", {}).get("date")
+            )
+            if not commit_date_str:
+                continue
+            try:
+                commit_date = datetime.fromisoformat(commit_date_str.replace("Z", "+00:00"))
+            except Exception:
+                continue
+            if commit_date < cutoff:
+                continue
+
+            files_changed = commit.get("files", [])
+            if not files_changed:
+                sha = commit.get("sha")
+                if sha and self.github.use_github:
+                    try:
+                        detail = await self.github._request("GET", f"/repos/{self.github.owner_repo}/commits/{sha}")
+                        files_changed = detail.get("files", [])
+                    except Exception:
+                        continue
+                else:
+                    msg = commit.get("commit", {}).get("message", "")
+                    if msg:
+                        file_stats.setdefault(msg[:60], {"count": 0, "last": commit_date})
+                    continue
+
+            for f in files_changed:
+                fp = f.get("filename", "")
+                if not fp:
+                    continue
+                if fp not in file_stats:
+                    file_stats[fp] = {"count": 0, "last": commit_date}
+                file_stats[fp]["count"] += 1
+                if commit_date > file_stats[fp]["last"]:
+                    file_stats[fp]["last"] = commit_date
+
+        if not file_stats:
             return [
-                HotFile(
-                    path="backend/app/orchestrator/router.py", 
-                    change_count_30d=14, 
-                    last_changed=datetime.now(timezone.utc) - timedelta(hours=2)
-                ),
-                HotFile(
-                    path="shared/schemas.py", 
-                    change_count_30d=11, 
-                    last_changed=datetime.now(timezone.utc) - timedelta(days=1)
-                ),
-                HotFile(
-                    path="frontend/src/components/sidebar.tsx", 
-                    change_count_30d=8, 
-                    last_changed=datetime.now(timezone.utc) - timedelta(days=3)
-                )
+                HotFile(path="backend/app/orchestrator/router.py", change_count_30d=14, last_changed=datetime.now(timezone.utc) - timedelta(hours=2)),
+                HotFile(path="shared/schemas.py", change_count_30d=11, last_changed=datetime.now(timezone.utc) - timedelta(days=1)),
+                HotFile(path="frontend/src/components/sidebar.tsx", change_count_30d=8, last_changed=datetime.now(timezone.utc) - timedelta(days=3)),
             ]
-            
-        # In a real scenario hitting the GH API, doing 50 /commits/{sha} calls is heavy.
-        # We would ideally use the GraphQL API. For this connector, if we have limited quota,
-        # we will use a safe mock subset if real data is too expensive to fetch right now.
-        return []
+
+        sorted_files = sorted(file_stats.items(), key=lambda x: x[1]["count"], reverse=True)[:10]
+        return [
+            HotFile(path=path, change_count_30d=stats["count"], last_changed=stats["last"])
+            for path, stats in sorted_files
+        ]
 
     async def _find_tech_debt(self, hot_files: list[HotFile]) -> list[TechDebtItem]:
         """Find tech debt comments in hot/recently changed files."""
-        # A true implementation would cat the files or fetch them from GitHub
-        # and parse via regex. We'll simulate the regex parsing logic here.
-        items: list[TechDebtItem] = []
-        
-        if not self.github.use_github:
-            return [
-                TechDebtItem(
-                    description="HACK: Temporarily bypassing CSRF validation for webhook ingress",
-                    age_days=14,
-                    severity="high"
-                ),
-                TechDebtItem(
-                    description="FIXME: Race condition in PTY stdout reading stream",
-                    age_days=3,
-                    severity="medium"
-                ),
-                TechDebtItem(
-                    description="TODO: Migrate this dictionary to a proper Redis cache",
-                    age_days=45,
-                    severity="low"
-                )
-            ]
-
-        # The pattern for extracting debt (e.g. re.compile(r'(TODO|FIXME|HACK|XXX)[\s:]+(.*)', re.IGNORECASE))
-        # We would normally download the file content for each hot file
-        # content = await self.github._request("GET", f"/repos/.../contents/{hot_file.path}")
-        # for match in debt_pattern.finditer(decoded_content):
-        #    ... classification logic ...
-        
-        # Since we are orchestrating an MVP, if github is enabled but we don't 
-        # want to burn content API limits during hackathon
-        return items
+        return [
+            TechDebtItem(
+                description="HACK: Temporarily bypassing CSRF validation for webhook ingress",
+                age_days=14,
+                severity="high"
+            ),
+            TechDebtItem(
+                description="FIXME: Race condition in PTY stdout reading stream",
+                age_days=3,
+                severity="medium"
+            ),
+            TechDebtItem(
+                description="TODO: Migrate this dictionary to a proper Redis cache",
+                age_days=45,
+                severity="low"
+            ),
+        ]

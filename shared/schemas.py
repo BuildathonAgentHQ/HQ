@@ -404,6 +404,25 @@ class UntestableDiff(BaseModel):
         ...,
         description="Human-readable risk tag (e.g. 'high — auth module').",
     )
+    pr_number: Optional[int] = Field(
+        None, description="PR this file belongs to."
+    )
+    pr_title: Optional[str] = Field(
+        None, description="Title of the originating PR."
+    )
+
+
+class PRFeatureCoverage(BaseModel):
+    """Coverage status for a single PR / feature."""
+
+    pr_number: int
+    title: str
+    author: str = ""
+    total_files: int = 0
+    source_files: int = 0
+    test_files: int = 0
+    has_tests: bool = False
+    coverage_status: Literal["covered", "partial", "uncovered"] = "uncovered"
 
 
 class CoverageReport(BaseModel):
@@ -429,6 +448,14 @@ class CoverageReport(BaseModel):
         "stable",
         description="Direction of coverage change over the last 7 days.",
     )
+    pr_features: list[PRFeatureCoverage] = Field(
+        default_factory=list,
+        description="Per-PR feature coverage breakdown.",
+    )
+    total_prs: int = Field(0, description="Total PRs analysed.")
+    prs_with_tests: int = Field(0, description="PRs that include test files.")
+    total_repos: int = Field(0, description="Total connected repositories.")
+    repos_with_tests: int = Field(0, description="Repos with at least 1 test file.")
 
 
 # ═══════════════════════════════════════════════════════════════════════════════

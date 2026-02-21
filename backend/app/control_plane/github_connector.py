@@ -122,6 +122,27 @@ class GitHubConnector:
             logger.warning("get_open_prs: GitHub API failed; falling back to mock", exc_info=True)
             return mock_github.get_sample_prs()
 
+    async def get_all_prs(self, per_page: int = 100) -> list[dict[str, Any]]:
+        """Fetch all PRs (open + closed + merged), paginated."""
+        if not self.use_github:
+            return mock_github.get_sample_prs()
+        try:
+            all_prs: list[dict[str, Any]] = []
+            page = 1
+            while True:
+                path = f"/repos/{self.owner_repo}/pulls?state=all&per_page={per_page}&page={page}"
+                batch = await self._request("GET", path)
+                if not batch:
+                    break
+                all_prs.extend(batch)
+                if len(batch) < per_page:
+                    break
+                page += 1
+            return all_prs
+        except Exception:
+            logger.warning("get_all_prs: GitHub API failed; falling back to mock", exc_info=True)
+            return mock_github.get_sample_prs()
+
     async def get_pr_diff(self, pr_number: int) -> str:
         if not self.use_github:
             files = mock_github.get_sample_pr_files(pr_number)
