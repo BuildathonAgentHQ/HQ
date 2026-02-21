@@ -17,7 +17,21 @@ import {
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select";
 import { API_BASE_URL } from "@/lib/constants";
+
+const ENGINES = [
+    { value: "claude-code", label: "Claude Code" },
+    { value: "cursor-cli", label: "Cursor CLI" },
+    { value: "gemini-cli", label: "Gemini CLI" },
+    { value: "codex", label: "Codex" },
+] as const;
 
 interface PRFeature {
     pr_number: number;
@@ -53,6 +67,9 @@ export default function CoveragePage() {
     const [loading, setLoading] = useState(true);
     const [dispatching, setDispatching] = useState<string | null>(null);
     const [dispatchResult, setDispatchResult] = useState<Record<string, any>>({});
+    const [selectedEngines, setSelectedEngines] = useState<Record<string, string>>({});
+
+    const getEngine = (key: string) => selectedEngines[key] ?? "claude-code";
 
     useEffect(() => {
         async function fetchData() {
@@ -82,6 +99,7 @@ export default function CoveragePage() {
                     action_type: "add_tests",
                     description: `Write unit tests for ${diff.file_path} (${diff.lines_uncovered} untested lines from PR #${diff.pr_number}: ${diff.pr_title}).`,
                     target: diff.file_path,
+                    engine: getEngine(key),
                 }),
             });
             if (!res.ok) {
@@ -252,6 +270,7 @@ export default function CoveragePage() {
                                         Uncovered Lines
                                     </th>
                                     <th className="px-4 py-3 font-medium">Risk Level</th>
+                                    <th className="px-4 py-3 font-medium">Agent</th>
                                     <th className="px-4 py-3 font-medium text-right">Action</th>
                                 </tr>
                             </thead>
@@ -291,6 +310,26 @@ export default function CoveragePage() {
                                                         {diff.risk}
                                                     </Badge>
                                                 </td>
+                                                <td className="px-4 py-3">
+                                                    <Select
+                                                        value={getEngine(key)}
+                                                        onValueChange={(v) =>
+                                                            setSelectedEngines((prev) => ({ ...prev, [key]: v }))
+                                                        }
+                                                        disabled={!!result || isRunning}
+                                                    >
+                                                        <SelectTrigger className="w-[140px] h-8 bg-white/[0.04] border-white/10 text-xs">
+                                                            <SelectValue />
+                                                        </SelectTrigger>
+                                                        <SelectContent>
+                                                            {ENGINES.map((e) => (
+                                                                <SelectItem key={e.value} value={e.value}>
+                                                                    {e.label}
+                                                                </SelectItem>
+                                                            ))}
+                                                        </SelectContent>
+                                                    </Select>
+                                                </td>
                                                 <td className="px-4 py-3 text-right">
                                                     {result?.status === "dispatched" ? (
                                                         <span className="text-xs text-green-400">
@@ -327,7 +366,7 @@ export default function CoveragePage() {
                                 ) : (
                                     <tr>
                                         <td
-                                            colSpan={5}
+                                            colSpan={6}
                                             className="px-4 py-8 text-center text-zinc-500 italic"
                                         >
                                             All PRs have test coverage. Great job!
