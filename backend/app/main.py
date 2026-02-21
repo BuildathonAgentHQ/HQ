@@ -42,12 +42,9 @@ from backend.app.telemetry.metrics_api import router as telemetry_router
 from backend.app.control_plane.router import router as control_plane_router
 from backend.app.knowledge.router import router as knowledge_router
 from backend.app.timeline.router import router as timeline_router
-<<<<<<< HEAD
 from backend.app.config_router import router as config_router
-=======
 from backend.app.repo_manager.router import router as repo_manager_router
 from backend.app.swarm.router import router as swarm_router
->>>>>>> c29f998 (Latest Update)
 
 logger = logging.getLogger(__name__)
 
@@ -183,12 +180,9 @@ app.include_router(telemetry_router,      prefix="/api/metrics",        tags=["m
 app.include_router(control_plane_router,  prefix="/api/control-plane",  tags=["control-plane"])
 app.include_router(knowledge_router,      prefix="/api/knowledge",      tags=["knowledge"])
 app.include_router(timeline_router,       prefix="/api/timeline",       tags=["timeline"])
-<<<<<<< HEAD
 app.include_router(config_router,          prefix="/api/config",         tags=["config"])
-=======
 app.include_router(repo_manager_router,   prefix="/api/repos",          tags=["repos"])
 app.include_router(swarm_router,          prefix="/api/swarm",          tags=["swarm"])
->>>>>>> c29f998 (Latest Update)
 
 
 # ═════════════════════════════════════════════════════════════════════════════

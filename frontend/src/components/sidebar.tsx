@@ -5,27 +5,15 @@ import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
 import {
-<<<<<<< HEAD
   LayoutDashboard,
   Terminal,
   GitPullRequest,
+  GitFork,
   Shield,
   HeartPulse,
   DollarSign,
-  Github,
-  ExternalLink,
+  Zap,
   Settings,
-=======
-    LayoutDashboard,
-    Terminal,
-    GitPullRequest,
-    GitFork,
-    Shield,
-    HeartPulse,
-    DollarSign,
-    Zap,
-    Settings,
->>>>>>> c29f998 (Latest Update)
 } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { KnowledgeSidebar } from "@/components/knowledge-sidebar";
@@ -34,22 +22,13 @@ import { useWebSocket } from "@/hooks/use-websocket";
 import { WS_URL, API_BASE_URL } from "@/lib/constants";
 
 const NAV_ITEMS = [
-<<<<<<< HEAD
+  { label: "Repositories", href: "/repos", icon: GitFork },
   { label: "Dashboard", href: "/", icon: LayoutDashboard },
   { label: "Agent Console", href: "/console", icon: Terminal },
-  { label: "PR Radar", href: "/pr-radar", icon: GitPullRequest },
+  { label: "PR Reviews", href: "/pr-radar", icon: GitPullRequest },
   { label: "Coverage Map", href: "/coverage", icon: Shield },
   { label: "Repo Health", href: "/repo-health", icon: HeartPulse },
   { label: "FinOps", href: "/finops", icon: DollarSign },
-=======
-    { label: "Repositories", href: "/repos", icon: GitFork },
-    { label: "Dashboard", href: "/", icon: LayoutDashboard },
-    { label: "Agent Console", href: "/console", icon: Terminal },
-    { label: "PR Reviews", href: "/pr-radar", icon: GitPullRequest },
-    { label: "Coverage Map", href: "/coverage", icon: Shield },
-    { label: "Repo Health", href: "/repo-health", icon: HeartPulse },
-    { label: "FinOps", href: "/finops", icon: DollarSign },
->>>>>>> c29f998 (Latest Update)
 ] as const;
 
 interface RepoConfig {
@@ -67,7 +46,7 @@ export function Sidebar() {
     fetch(`${API_BASE_URL}/config/repo`)
       .then((r) => (r.ok ? r.json() : null))
       .then((data) => data && setRepo(data))
-      .catch(() => {});
+      .catch(() => { });
   }, []);
 
   return (
@@ -123,20 +102,6 @@ export function Sidebar() {
       {/* ── Footer ───────────────────────────────────────────── */}
       <div className="border-t border-border/30 px-6 py-4 space-y-3">
         {/* ── Target repo link ────────── */}
-        {repo && repo.repo_name && (
-          <a
-            href={repo.repo_url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-medium text-slate-300 bg-white/5 hover:bg-white/10 transition-colors group"
-          >
-            <Github className="h-3.5 w-3.5 text-slate-400 group-hover:text-white" />
-            <span className="truncate flex-1">
-              {repo.repo_owner}/{repo.repo_name}
-            </span>
-            <ExternalLink className="h-3 w-3 text-slate-500 group-hover:text-white" />
-          </a>
-        )}
 
         <div className="flex items-center gap-2 text-xs text-muted-foreground">
           <span

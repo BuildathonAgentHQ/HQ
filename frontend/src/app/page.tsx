@@ -17,10 +17,6 @@ import { SwarmMonitor } from "@/components/swarm-monitor";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-<<<<<<< HEAD
-import { Cpu, Github, ExternalLink } from "lucide-react";
-import { API_BASE_URL } from "@/lib/constants";
-=======
 import {
     Cpu,
     GitFork,
@@ -81,23 +77,10 @@ function timeAgo(iso: string | null): string {
 }
 
 // ── Page Component ─────────────────────────────────────────────────────────
->>>>>>> c29f998 (Latest Update)
 
 export default function DashboardPage() {
     const { events, isConnected, sendMessage } = useWebSocket(WS_URL);
     const [tasks, setTasks] = useState<Task[] | null>(null);
-<<<<<<< HEAD
-    const [repo, setRepo] = useState<{ repo_name: string; repo_url: string; repo_owner: string } | null>(null);
-
-    useEffect(() => {
-        getTasks()
-            .then(setTasks)
-            .catch(() => { });
-        fetch(`${API_BASE_URL}/config/repo`)
-            .then((r) => r.ok ? r.json() : null)
-            .then((data) => data && data.repo_name && setRepo(data))
-            .catch(() => {});
-=======
     const [repos, setRepos] = useState<Repository[] | null>(null);
     const [reviews, setReviews] = useState<PRReview[] | null>(null);
     const [swarms, setSwarms] = useState<SwarmPlan[] | null>(null);
@@ -107,7 +90,6 @@ export default function DashboardPage() {
         apiFetch<Repository[]>("/repos").then(setRepos).catch(() => setRepos([]));
         apiFetch<PRReview[]>("/control-plane/reviews/recent").then(setReviews).catch(() => setReviews([]));
         apiFetch<SwarmPlan[]>("/swarm/plans/active").then(setSwarms).catch(() => setSwarms([]));
->>>>>>> c29f998 (Latest Update)
     }, []);
 
     return (
@@ -117,15 +99,15 @@ export default function DashboardPage() {
                 <div>
                     <div className="flex items-center gap-3">
                         <h2 className="text-2xl font-bold tracking-tight">Dashboard</h2>
-                        {repo && (
+                        {repos && repos.length > 0 && (
                             <a
-                                href={repo.repo_url}
+                                href={`https://github.com/${repos[0].full_name}`}
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 className="flex items-center gap-1.5 rounded-full bg-white/5 border border-border/40 px-3 py-1 text-xs font-medium text-slate-300 hover:bg-white/10 hover:text-white transition-colors group"
                             >
-                                <Github className="h-3.5 w-3.5" />
-                                <span>{repo.repo_owner}/{repo.repo_name}</span>
+                                <GitFork className="h-3.5 w-3.5" />
+                                <span>{repos[0].full_name}</span>
                                 <ExternalLink className="h-3 w-3 text-slate-500 group-hover:text-white" />
                             </a>
                         )}
