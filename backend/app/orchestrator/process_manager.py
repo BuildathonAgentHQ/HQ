@@ -34,6 +34,8 @@ from shared.schemas import ContextPayload, RawStreamEvent, Task
 
 from backend.app.config import settings
 from backend.app.translation.translator import TranslationLayer
+from backend.app.telemetry._shared import telemetry as _telemetry
+from backend.app.telemetry.token_tracker import TokenTracker
 
 logger = logging.getLogger(__name__)
 
@@ -71,14 +73,17 @@ class ProcessManager:
     MCP_CONFIG_PATH = ".agent_hq/mcp.json"
     WORKSPACES_DIR = Path(tempfile.gettempdir()) / "agent_hq_workspaces"
 
-    def __init__(self, event_router: Any) -> None:
+    def __init__(self, event_router: Any, task_manager: Any = None) -> None:
         """
         Args:
             event_router: The ``EventRouter`` singleton used to emit events
                 to WebSocket clients and in-process handlers.
+            task_manager: Optional ``TaskManager`` to update task records.
         """
         self._event_router = event_router
+        self._task_manager = task_manager
         self._translator = TranslationLayer(settings)
+        self._token_tracker = TokenTracker(_telemetry)
         self.active_processes: dict[str, ManagedProcess] = {}
         self.WORKSPACES_DIR.mkdir(parents=True, exist_ok=True)
         logger.info("ProcessManager initialised (translator=%s)",
@@ -205,6 +210,29 @@ class ProcessManager:
 
                 # ── Translate raw output → human-friendly event ────────
                 translated = await self._translator.translate(raw_event)
+
+                # ── Estimate tokens and cost ──────────────────────────
+                # Heuristic: estimate from character count.
+                # Find the task so we know the engine for pricing.
+                engine = "claude-code"
+                if self._task_manager:
+                    task = self._task_manager.get_task(task_id)
+                    if task:
+                        engine = task.engine
+                
+                char_count = len(text)
+                cumulative_cost = await self._token_tracker.estimate_from_chars(
+                    task_id, char_count, engine=engine
+                )
+                
+                # Update task in memory if possible
+                if self._task_manager:
+                    usage = self._token_tracker.get_usage(task_id)
+                    self._task_manager.update_task(
+                        task_id,
+                        token_count=usage["input_tokens"] + usage["output_tokens"],
+                        budget_used=usage["cost"]
+                    )
 
                 ws_event = create_ws_event(
                     task_id=task_id,
