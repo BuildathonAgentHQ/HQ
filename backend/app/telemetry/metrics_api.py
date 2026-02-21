@@ -20,15 +20,33 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
 from backend.app.config import Settings, settings
-from backend.app.telemetry.agent_telemetry import AgentTelemetry
+from backend.app.telemetry._shared import telemetry as _telemetry
 from shared.schemas import AgentLeaderboardEntry, TelemetryMetrics
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
-# ── Module-level telemetry instance ──────────────────────────────────────────
-_telemetry = AgentTelemetry(settings)
+# _telemetry is imported from _shared.py (singleton)
+
+@router.get("/status")
+def get_telemetry_status() -> dict[str, object]:
+    """Return telemetry backend status and configuration.
+
+    Useful for diagnosing why runs may not appear in Databricks.
+    """
+    try:
+        settings_obj = getattr(_telemetry, "_settings", None)
+        resolved_exp = getattr(_telemetry, "_resolved_experiment_name", None)
+        return {
+            "use_databricks": bool(getattr(_telemetry, "_use_databricks", False)),
+            "databricks_ready": bool(getattr(_telemetry, "_databricks_ready", False)),
+            "tracking_uri": getattr(settings_obj, "MLFLOW_TRACKING_URI", None),
+            "experiment": resolved_exp or getattr(settings_obj, "MLFLOW_EXPERIMENT", None),
+            "host": getattr(settings_obj, "DATABRICKS_HOST", None),
+        }
+    except Exception:
+        return {"use_databricks": False, "error": "status_introspection_failed"}
 
 
 # ── FinOps Pydantic model ────────────────────────────────────────────────────
@@ -40,6 +58,8 @@ class TopCostTask(BaseModel):
     task_id: str
     engine: str = ""
     cost: float = Field(..., ge=0)
+    description: str = ""
+    duration_seconds: float = 0.0
 
 
 class FinOpsReport(BaseModel):
@@ -50,6 +70,9 @@ class FinOpsReport(BaseModel):
     avg_cost_per_task: float = Field(0.0, ge=0, description="Average cost per task (30d).")
     projected_monthly_burn: float = Field(
         0.0, ge=0, description="Extrapolated 30-day spend from daily average."
+    )
+    daily_spend: list[dict[str, Any]] = Field(
+        default_factory=list, description="Daily spend for the last 30 days."
     )
     top_cost_tasks: list[TopCostTask] = Field(
         default_factory=list,
@@ -114,69 +137,112 @@ async def get_metrics_history(
 @router.get("/finops", response_model=FinOpsReport)
 async def get_finops() -> FinOpsReport:
     """Return aggregate financial data for the FinOps dashboard."""
-    runs = _telemetry._search_all_runs()
-    if not runs:
-        return FinOpsReport()
+    try:
+        runs = _telemetry._search_all_runs()
+        if not runs:
+            return FinOpsReport()
 
-    df = _telemetry._runs_to_dataframe(runs)
-    if df.empty:
-        return FinOpsReport()
+        df = _telemetry._runs_to_dataframe(runs)
+        if df.empty:
+            return FinOpsReport()
 
-    # ── Total spend: last 30 days ────────────────────────────────────
-    now = datetime.now(timezone.utc)
-    cost_col = "total_cost"
-    if cost_col not in df.columns:
-        cost_col = "cumulative_cost"
-    if cost_col not in df.columns:
-        return FinOpsReport()
+        # ── Total spend: last 30 days ────────────────────────────────────
+        now = datetime.now(timezone.utc)
+        cost_col = "total_cost"
+        if cost_col not in df.columns:
+            cost_col = "cumulative_cost"
+        if cost_col not in df.columns:
+            logger.warning("FinOps: cost column not found in dataframe")
+            return FinOpsReport()
 
-    df[cost_col] = pd.to_numeric(df[cost_col], errors="coerce").fillna(0)
+        df[cost_col] = pd.to_numeric(df[cost_col], errors="coerce").fillna(0.0)
 
-    # Parse start_time for date filtering
-    if "start_time" in df.columns:
-        df["start_time"] = pd.to_datetime(df["start_time"], utc=True, errors="coerce")
-        cutoff_30d = now - pd.Timedelta(days=30)
-        df_30d = df[df["start_time"] >= cutoff_30d]
-        today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
-        df_today = df[df["start_time"] >= today_start]
-    else:
-        df_30d = df
-        df_today = df
+        # Parse start_time for date filtering
+        if "start_time" in df.columns:
+            df["start_time"] = pd.to_datetime(df["start_time"], utc=True, errors="coerce")
+            # Drop rows where start_time couldn't be parsed
+            df = df.dropna(subset=["start_time"])
+            
+            cutoff_30d = now - pd.Timedelta(days=30)
+            df_30d = df[df["start_time"] >= cutoff_30d].copy()
+            
+            today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+            df_today = df[df["start_time"] >= today_start]
+        else:
+            df_30d = df.copy()
+            df_today = df
 
-    total_spend_today = float(df_today[cost_col].sum())
-    total_spend_30d = float(df_30d[cost_col].sum())
-    n_tasks_30d = len(df_30d)
-    avg_cost = total_spend_30d / n_tasks_30d if n_tasks_30d else 0.0
+        total_spend_today = float(df_today[cost_col].sum())
+        total_spend_30d = float(df_30d[cost_col].sum())
+        n_tasks_30d = len(df_30d)
+        avg_cost = total_spend_30d / n_tasks_30d if n_tasks_30d else 0.0
 
-    # Daily average → projected monthly burn
-    if "start_time" in df_30d.columns and len(df_30d) > 0:
-        span_days = max(1, (now - df_30d["start_time"].min()).days)
-        daily_avg = total_spend_30d / span_days
-        projected = daily_avg * 30
-    else:
-        projected = 0.0
+        # ── Daily average → projected monthly burn ──────────────────────
+        if "start_time" in df_30d.columns and len(df_30d) > 0:
+            min_start = df_30d["start_time"].min()
+            if pd.notna(min_start):
+                span_days = max(1, (now - min_start).days)
+                daily_avg = total_spend_30d / span_days
+                projected = daily_avg * 30
+            else:
+                projected = 0.0
+        else:
+            projected = 0.0
 
-    # ── Top 5 most expensive tasks ───────────────────────────────────
-    task_id_col = "task_uuid" if "task_uuid" in df_30d.columns else "task_id"
-    engine_col = "engine" if "engine" in df_30d.columns else "tool"
+        # ── Daily Spend History (30d) ──────────────────────────────────
+        daily_history = []
+        if "start_time" in df_30d.columns and not df_30d.empty:
+            # Group by date and sum cost
+            df_30d["_date"] = df_30d["start_time"].dt.date
+            daily_group = df_30d.groupby("_date")[cost_col].sum().sort_index()
+            for d, amt in daily_group.items():
+                if d is not None:
+                    daily_history.append({"date": d.isoformat(), "amount": round(float(amt), 4)})
 
-    top_df = df_30d.nlargest(5, cost_col)
-    top_cost_tasks = [
-        TopCostTask(
-            task_id=str(row.get(task_id_col, "unknown")),
-            engine=str(row.get(engine_col, "")),
-            cost=round(float(row.get(cost_col, 0)), 4),
+        # ── Top 5 most expensive tasks ───────────────────────────────────
+        task_id_col = "task_uuid" if "task_uuid" in df_30d.columns else "task_id"
+        engine_col = "engine" if "engine" in df_30d.columns else "tool"
+        desc_col = "task_description"
+        dur_col = "total_duration_seconds"
+
+        top_df = df_30d.nlargest(5, cost_col)
+        top_cost_tasks = []
+        for _, row in top_df.iterrows():
+            engine = str(row.get(engine_col, "unknown"))
+            if engine == "nan" or not engine:
+                engine = "unknown"
+            
+            desc = str(row.get(desc_col, ""))
+            if desc == "nan":
+                desc = ""
+
+            cost_val = row.get(cost_col, 0)
+            cost_val = float(cost_val) if pd.notna(cost_val) else 0.0
+            
+            dur_val = row.get(dur_col, 0)
+            dur_val = float(dur_val) if pd.notna(dur_val) else 0.0
+
+            top_cost_tasks.append(
+                TopCostTask(
+                    task_id=str(row.get(task_id_col, "unknown")),
+                    engine=engine,
+                    cost=round(cost_val, 4),
+                    description=desc,
+                    duration_seconds=round(dur_val, 2),
+                )
+            )
+
+        return FinOpsReport(
+            total_spend_today=round(total_spend_today, 4),
+            total_spend_30d=round(total_spend_30d, 4),
+            avg_cost_per_task=round(avg_cost, 4),
+            projected_monthly_burn=round(projected, 4),
+            daily_spend=daily_history,
+            top_cost_tasks=top_cost_tasks,
         )
-        for _, row in top_df.iterrows()
-    ]
-
-    return FinOpsReport(
-        total_spend_today=round(total_spend_today, 4),
-        total_spend_30d=round(total_spend_30d, 4),
-        avg_cost_per_task=round(avg_cost, 4),
-        projected_monthly_burn=round(projected, 4),
-        top_cost_tasks=top_cost_tasks,
-    )
+    except Exception as e:
+        logger.exception("FinOps: Failed to generate report")
+        return FinOpsReport()
 
 
 @router.get("/export")

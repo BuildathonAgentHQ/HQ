@@ -42,29 +42,87 @@ class AgentTelemetry:
     def __init__(self, settings: Settings) -> None:
         self.active_runs: dict[str, str] = {}  # task_id → run_id
         self._use_databricks: bool = settings.USE_DATABRICKS
+        self._databricks_ready: bool = False
         self._client: Any = None  # MockMLflowClient or real mlflow module
+        self._mlflow: Any = None
+        self._settings = settings
+        self._resolved_experiment_name: Optional[str] = None
 
         if self._use_databricks:
-            try:
-                import mlflow
-                from mlflow.tracking import MlflowClient
+            # Just set env vars so the SDK can find creds later.
+            # All actual MLflow work is deferred to _ensure_databricks().
+            import os
+            if settings.DATABRICKS_HOST:
+                os.environ.setdefault("DATABRICKS_HOST", settings.DATABRICKS_HOST)
+            if settings.DATABRICKS_TOKEN:
+                os.environ.setdefault("DATABRICKS_TOKEN", settings.DATABRICKS_TOKEN)
+            logger.info(
+                "AgentTelemetry: MLflow enabled (lazy init) → %s",
+                settings.MLFLOW_TRACKING_URI,
+            )
+        else:
+            self._init_mock()
 
-                mlflow.set_tracking_uri(settings.MLFLOW_TRACKING_URI)
-                mlflow.set_experiment("agent-hq")
-                self._client = MlflowClient()
-                self._mlflow = mlflow  # keep module ref for start_run
-                logger.info(
-                    "AgentTelemetry: Databricks MLflow enabled → %s",
-                    settings.MLFLOW_TRACKING_URI,
-                )
+    def _ensure_databricks(self) -> None:
+        """Lazily initialise MLflow on first use (avoids blocking startup)."""
+        if self._databricks_ready or not self._use_databricks:
+            return
+        try:
+            import mlflow
+            from mlflow.tracking import MlflowClient
+
+            # Configure tracking URI and client
+            mlflow.set_tracking_uri(self._settings.MLFLOW_TRACKING_URI)
+            self._mlflow = mlflow
+            self._client = MlflowClient()
+
+            # Try to set the experiment, but don't fail hard if it doesn't exist
+            experiment_name = self._settings.MLFLOW_EXPERIMENT
+            try:
+                if experiment_name:
+                    resolved_name = experiment_name
+                    # In Databricks, experiments live under workspace paths.
+                    # If the user provided a simple name (no leading '/'),
+                    # place it under '/Shared/<name>' to ensure it exists.
+                    if (self._settings.MLFLOW_TRACKING_URI == "databricks"
+                        and not experiment_name.startswith("/")):
+                        resolved_name = f"/Shared/{experiment_name}"
+
+                    # Ensure experiment exists; create if missing
+                    exp = self._client.get_experiment_by_name(resolved_name)
+                    if exp is None:
+                        try:
+                            self._client.create_experiment(resolved_name)
+                            logger.info("AgentTelemetry: Created experiment '%s'", resolved_name)
+                        except Exception:
+                            logger.warning(
+                                "AgentTelemetry: Failed to create experiment '%s'",
+                                resolved_name,
+                                exc_info=True,
+                            )
+                    # Set active experiment for fluent API
+                    mlflow.set_experiment(resolved_name)
+                    self._resolved_experiment_name = resolved_name
             except Exception:
                 logger.warning(
-                    "AgentTelemetry: mlflow import failed; falling back to mock",
+                    "AgentTelemetry: Failed to set MLflow experiment '%s'",
+                    experiment_name,
                     exc_info=True,
                 )
-                self._use_databricks = False
-                self._init_mock()
-        else:
+
+            self._databricks_ready = True
+            logger.info(
+                "AgentTelemetry: MLflow ready (uri=%s, experiment=%s)",
+                self._settings.MLFLOW_TRACKING_URI,
+                self._resolved_experiment_name or experiment_name,
+            )
+        except Exception:
+            logger.warning(
+                "AgentTelemetry: MLflow init failed; falling back to mock",
+                exc_info=True,
+            )
+            self._use_databricks = False
+            self._databricks_ready = False
             self._init_mock()
 
     # ── Helpers ──────────────────────────────────────────────────────────
@@ -83,20 +141,32 @@ class AgentTelemetry:
         Tags logged: ``tool``, ``task_uuid``, ``agent_type``,
         ``task_description`` (first 100 chars).
         """
+        self._ensure_databricks()
         if self._use_databricks:
             run = self._mlflow.start_run(run_name=f"task-{task.id[:8]}")
             run_id: str = run.info.run_id
             self._mlflow.end_run()  # close fluent context; we use MlflowClient below
 
             self._client.log_param(run_id, "start_time", datetime.now(timezone.utc).isoformat())
+            # Common tags
+            self._client.set_tag(run_id, "engine", task.engine)
             self._client.set_tag(run_id, "tool", task.engine)
             self._client.set_tag(run_id, "task_uuid", task.id)
             self._client.set_tag(run_id, "agent_type", task.agent_type)
             self._client.set_tag(run_id, "task_description", task.task[:100])
+            try:
+                logger.info(
+                    "AgentTelemetry: Created run %s in experiment '%s'",
+                    run_id,
+                    self._resolved_experiment_name or self._settings.MLFLOW_EXPERIMENT,
+                )
+            except Exception:
+                pass
         else:
             run_id = self._client.start_run(task_id=task.id, engine=task.engine)
 
             self._client.log_param("start_time", datetime.now(timezone.utc).isoformat(), run_id=run_id)
+            self._client.set_tag("engine", task.engine, run_id=run_id)
             self._client.set_tag("tool", task.engine, run_id=run_id)
             self._client.set_tag("task_uuid", task.id, run_id=run_id)
             self._client.set_tag("agent_type", task.agent_type, run_id=run_id)
@@ -115,7 +185,9 @@ class AgentTelemetry:
 
         if self._use_databricks:
             self._client.log_metric(run_id, "token_count", float(tokens))
+            self._client.log_metric(run_id, "total_tokens", float(tokens))
             self._client.log_metric(run_id, "cumulative_cost", float(cost))
+            self._client.log_metric(run_id, "total_cost", float(cost))
         else:
             self._client.log_metric("token_count", tokens, run_id=run_id)
             self._client.log_metric("cumulative_cost", cost, run_id=run_id)
@@ -153,7 +225,9 @@ class AgentTelemetry:
             self._client.log_metric(run_id, "exit_code", exit_val)
             self._client.log_metric(run_id, "total_duration_seconds", float(duration))
             self._client.log_metric(run_id, "total_tokens", float(task.token_count))
+            self._client.log_metric(run_id, "token_count", float(task.token_count))
             self._client.log_metric(run_id, "total_cost", float(task.budget_used))
+            self._client.log_metric(run_id, "cumulative_cost", float(task.budget_used))
             self._client.set_tag(run_id, "status", task.status)
             self._client.set_terminated(run_id, status="FINISHED" if task.status == "success" else "FAILED")
         else:
@@ -271,11 +345,29 @@ class AgentTelemetry:
 
     def _search_all_runs(self) -> list[dict[str, Any]]:
         """Retrieve all runs from the MLflow back-end."""
+        self._ensure_databricks()
         try:
             if self._use_databricks:
-                experiment = self._client.get_experiment_by_name("agent-hq")
+                # Look up the configured experiment; if not found, try Default
+                experiment_name = (
+                    self._resolved_experiment_name or self._settings.MLFLOW_EXPERIMENT
+                )
+                experiment = self._client.get_experiment_by_name(experiment_name)
                 if experiment is None:
-                    return []
+                    logger.info(
+                        "AgentTelemetry: Experiment '%s' not found; trying 'Default'",
+                        experiment_name,
+                    )
+                    # As a final attempt, check '/Shared/<name>' variant if a bare name was provided
+                    if experiment_name and not str(experiment_name).startswith("/"):
+                        shared_variant = f"/Shared/{experiment_name}"
+                        experiment = self._client.get_experiment_by_name(shared_variant)
+                        if experiment:
+                            logger.info("AgentTelemetry: Found experiment via '%s'", shared_variant)
+                    # Fall back to Default
+                    experiment = self._client.get_experiment_by_name("Default")
+                    if experiment is None:
+                        return []
                 runs = self._client.search_runs(
                     experiment_ids=[experiment.experiment_id],
                 )
@@ -325,9 +417,25 @@ class AgentTelemetry:
             return df
 
         # ── Time filtering ───────────────────────────────────────────────
+        # Normalize start_time to timezone-aware pandas Timestamp where possible.
+        if "start_time" in df.columns:
+            try:
+                st = df["start_time"]
+                if pd.api.types.is_numeric_dtype(st):
+                    vmax = pd.to_numeric(st, errors="coerce").dropna().max() if len(st) else None
+                    # Heuristic: Databricks/MLflow returns ms since epoch; seconds also possible.
+                    unit = None
+                    if vmax is not None:
+                        unit = "ms" if vmax and vmax > 1e11 and vmax < 1e14 else ("s" if vmax and vmax > 1e9 else None)
+                    df["start_time"] = pd.to_datetime(st, utc=True, unit=unit, errors="coerce") if unit else pd.to_datetime(st, utc=True, errors="coerce")
+                else:
+                    df["start_time"] = pd.to_datetime(st, utc=True, errors="coerce")
+            except Exception:
+                # Leave as-is on failure
+                pass
+
         if days is not None and "start_time" in df.columns:
             try:
-                df["start_time"] = pd.to_datetime(df["start_time"], utc=True)
                 cutoff = datetime.now(timezone.utc) - pd.Timedelta(days=days)
                 df = df[df["start_time"] >= cutoff]
             except Exception:

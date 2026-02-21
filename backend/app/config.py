@@ -12,7 +12,17 @@ demo always works.
 from __future__ import annotations
 
 from pydantic import ConfigDict
+from pathlib import Path
+from dotenv import load_dotenv
 from pydantic_settings import BaseSettings
+
+
+# Ensure the project .env is loaded even if the server starts from a different CWD
+_ENV_PATH = Path(__file__).resolve().parents[2] / ".env"
+try:
+    load_dotenv(dotenv_path=_ENV_PATH, override=False)
+except Exception:
+    pass
 
 
 class Settings(BaseSettings):
@@ -23,7 +33,7 @@ class Settings(BaseSettings):
     """
 
     model_config = ConfigDict(
-        env_file=".env",
+        env_file=str(_ENV_PATH) if _ENV_PATH.exists() else ".env",
         env_file_encoding="utf-8",
         case_sensitive=False,
     )
@@ -41,6 +51,7 @@ class Settings(BaseSettings):
     DATABRICKS_HOST: str = ""
     DATABRICKS_TOKEN: str = ""
     MLFLOW_TRACKING_URI: str = "sqlite:///mlruns.db"
+    MLFLOW_EXPERIMENT: str = "agent-hq"
 
     # ── Budgets ──────────────────────────────────────────────────────────
     BUDGET_LIMIT_PER_TASK: float = 2.0

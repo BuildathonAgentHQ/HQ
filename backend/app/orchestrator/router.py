@@ -14,6 +14,7 @@ from fastapi import APIRouter, HTTPException
 
 from shared.events import EventType
 from shared.schemas import GuardrailEvent, Task, TaskCreate, WebSocketEvent
+from backend.app.telemetry._shared import telemetry as _telemetry
 from backend.app.guardrails.escalation import EscalationManager
 
 from backend.app.orchestrator.task_manager import TaskManager
@@ -25,14 +26,16 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 # ── Module-level singletons (created once at import time) ───────────────────
-task_manager = TaskManager(seed_mock=True)
-process_manager = ProcessManager(event_router=event_router)
+task_manager = TaskManager(seed_mock=False)
+process_manager = ProcessManager(event_router=event_router, task_manager=task_manager)
 escalation_manager = EscalationManager(process_manager=process_manager, event_router=event_router)
 
 async def _on_guardrail_triggered(ws_event: WebSocketEvent) -> None:
     """Invoked globally when the JanitorWatcher emits a guardrail event."""
     try:
         ge = GuardrailEvent(**ws_event.payload)
+        # Log to telemetry (MLflow) regardless of pass/fail
+        await _telemetry.log_guardrail_event(ge.task_id, ge)
         if ge.passed:
             await escalation_manager.handle_guardrail_success(ge.task_id)
         else:
@@ -41,6 +44,35 @@ async def _on_guardrail_triggered(ws_event: WebSocketEvent) -> None:
         logger.error(f"Failed to process guardrail event in orchestrator: {e}")
 
 event_router.register_handler(EventType.GUARDRAIL_TRIGGERED, _on_guardrail_triggered)
+
+
+async def _on_task_lifecycle(ws_event: WebSocketEvent) -> None:
+    """Telemetry hook for task lifecycle events.
+
+    - When a task enters "running", start an MLflow run.
+    - When a task finishes (success/failed), end the MLflow run and
+      ensure the task's final status/exit_code are captured.
+    """
+    task_id = ws_event.task_id
+    status = ws_event.payload.get("status")
+    exit_code = ws_event.payload.get("exit_code")
+
+    task = task_manager.get_task(task_id)
+    if not task:
+        return
+
+    try:
+        if status == "running":
+            await _telemetry.start_tracking(task)
+        elif status in {"success", "failed"}:
+            # Persist final status/exit code before closing the run
+            updated = task_manager.update_task(task_id, status=status, exit_code=exit_code) or task
+            await _telemetry.end_tracking(updated)
+    except Exception:
+        logger.exception("Telemetry lifecycle handler failed for task %s", task_id)
+
+
+event_router.register_handler(EventType.TASK_LIFECYCLE, _on_task_lifecycle)
 
 
 
