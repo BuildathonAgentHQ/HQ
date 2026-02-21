@@ -74,7 +74,7 @@ async def get_pr_scores() -> list[PRRiskScore]:
 
 @router.get("/coverage", response_model=CoverageReport)
 async def get_coverage() -> CoverageReport:
-    """Return the latest test-coverage report."""
+    """Return feature-level test coverage across all PRs (open + closed)."""
     return await coverage_analyzer.analyze_coverage()
 
 

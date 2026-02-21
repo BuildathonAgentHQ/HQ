@@ -1,178 +1,211 @@
 """
 Coverage Analyzer for Agent HQ Control Plane.
 
-Analyzes test coverage across the repository, identifies untested PR diffs,
-and generates automated test-writing tasks for the Agent HQ orchestrator.
+Analyses feature-level test coverage across ALL PRs (open, closed, merged).
+A "feature" is any PR that introduces source code.  A feature counts as
+"tested" if test files exist for its source files — either within the same
+PR or in any other PR in the repo.
+
+    coverage = tested_features / total_features
 """
 
 from __future__ import annotations
 
-import json
+import asyncio
 import logging
-from pathlib import Path
+import os
 from typing import Any
 
 from backend.app.config import Settings
 from backend.app.control_plane.github_connector import GitHubConnector
-from shared.mocks import mock_github
-from shared.schemas import CoverageReport, TaskCreate, UntestableDiff
+from shared.schemas import (
+    CoverageReport,
+    PRFeatureCoverage,
+    UntestableDiff,
+)
 
 logger = logging.getLogger(__name__)
 
+_TEST_PATTERNS = ("test", "spec", "__tests__", "tests/", "test/")
+_SOURCE_EXTS = (".py", ".js", ".ts", ".tsx", ".jsx", ".go", ".java", ".rs")
+
+
+def _is_test_file(path: str) -> bool:
+    low = path.lower()
+    return any(p in low for p in _TEST_PATTERNS)
+
+
+def _is_source_file(path: str) -> bool:
+    return any(path.endswith(ext) for ext in _SOURCE_EXTS) and not _is_test_file(path)
+
+
+def _stem(path: str) -> str:
+    """Return the bare module name stripped of dirs, extensions, and test prefixes.
+
+    ``tests/test_multiply.js`` → ``multiply``
+    ``src/multiply.js``        → ``multiply``
+    """
+    base = path.rsplit("/", 1)[-1]
+    name = base.rsplit(".", 1)[0]
+    for prefix in ("test_", "test.", "spec.", "spec_"):
+        if name.lower().startswith(prefix):
+            name = name[len(prefix):]
+    for suffix in (".test", ".spec", "_test", "_spec"):
+        if name.lower().endswith(suffix):
+            name = name[: -len(suffix)]
+    return name.lower()
+
 
 class CoverageAnalyzer:
-    """Analyzes test coverage and generates automated test-writing tasks."""
+    """Analyses feature-level test coverage for the connected repository."""
 
     def __init__(self, github: GitHubConnector, settings: Settings):
         self.github = github
         self.settings = settings
+        self._cache: CoverageReport | None = None
 
     async def analyze_coverage(self) -> CoverageReport:
-        """
-        Analyze the repository's test coverage.
-        Prefers local files, then GitHub artifacts, and falls back to mocks.
-        """
-        coverage_data: dict[str, Any] = {}
-        
-        # 1. Check local coverage files
-        # Assuming we might run in the repo root or can find coverage.json
-        # In a real environment, we'd look for github paths or specific directories
-        coverage_file = Path("coverage.json")
-        if coverage_file.exists():
-            try:
-                with open(coverage_file, "r") as f:
-                    coverage_data = json.load(f)
-            except Exception as e:
-                logger.warning(f"Failed to parse local coverage.json: {e}")
-        
-        # 2. GitHub Actions artifacts (Skipping implementation details for sprint scope,
-        # but the structure would query GitHub actions artifacts via API.)
-        
-        # 3. Fallback to mock data if no valid data source
-        if not coverage_data:
-            coverage_data = mock_github.get_sample_coverage_json()
+        """Fetch ALL PRs → identify features → cross-match tests → report."""
+        if self._cache is not None:
+            return self._cache
 
-        # Parse the coverage_data
-        total_coverage_pct = coverage_data.get("totals", {}).get("percent_covered", 0.0)
-        
+        all_prs = await self.github.get_all_prs()
+        logger.info("Coverage: analysing %d PRs (open + closed)", len(all_prs))
+
+        pr_file_tasks = [self._fetch_pr_files(pr) for pr in all_prs]
+        pr_file_results = await asyncio.gather(*pr_file_tasks, return_exceptions=True)
+
+        pr_data: list[dict[str, Any]] = []
+        global_test_stems: set[str] = set()
+
+        for pr, result in zip(all_prs, pr_file_results):
+            if isinstance(result, Exception):
+                logger.warning("Failed to fetch files for PR #%s: %s", pr.get("number"), result)
+                continue
+
+            source_files, test_files = result
+            entry = {
+                "pr": pr,
+                "source_files": source_files,
+                "test_files": test_files,
+            }
+            pr_data.append(entry)
+
+            for tf in test_files:
+                global_test_stems.add(_stem(tf))
+
+        pr_features: list[PRFeatureCoverage] = []
+        all_untested: list[UntestableDiff] = []
         module_coverage: dict[str, float] = {}
-        files_data = coverage_data.get("files", {})
-        for filepath, data in files_data.items():
-            pct = data.get("summary", {}).get("percent_covered", 0.0)
-            module_name = filepath.split("/")[0] if "/" in filepath else filepath
-            
-            if module_name not in module_coverage:
-                module_coverage[module_name] = pct
+        total_features = 0
+        tested_features = 0
+
+        for entry in pr_data:
+            pr = entry["pr"]
+            source_files: list[str] = entry["source_files"]
+            test_files: list[str] = entry["test_files"]
+
+            is_feature = len(source_files) > 0
+            if not is_feature:
+                continue
+
+            total_features += 1
+            pr_number = pr["number"]
+            title = pr.get("title", f"PR #{pr_number}")
+            author = pr.get("user", {}).get("login", "unknown")
+            state = pr.get("state", "open")
+
+            has_own_tests = len(test_files) > 0
+            source_stems = {_stem(sf) for sf in source_files}
+            has_cross_tests = bool(source_stems & global_test_stems)
+            is_tested = has_own_tests or has_cross_tests
+
+            if is_tested:
+                tested_features += 1
+
+            if is_tested and has_own_tests:
+                status = "covered"
+            elif is_tested:
+                status = "partial"
             else:
-                # Naive average for scoping
-                module_coverage[module_name] = (module_coverage[module_name] + pct) / 2.0
-                
-        # To populate untested_diffs, we would ideally cross-reference open PRs.
-        # For the baseline analysis report, we'll try to find any recently modified files.
-        untested_diffs: list[UntestableDiff] = []
-        try:
-            # Quick check for open PRs to populate the report
-            recent_prs = await self.github.get_open_prs()
-            if recent_prs:
-                # Just take the latest PR for the global report snippet
-                pr_num = recent_prs[0].get("number")
-                if pr_num:
-                    pr_files = await self.github.get_pr_files(pr_num)
-                    untested_diffs = await self.find_untested_diffs(pr_files, coverage_data)
-        except Exception as e:
-            logger.warning(f"Could not fetch PRs for coverage cross-referencing: {e}")
+                status = "uncovered"
 
-        # Trend (mock logic: compare against imaginary 7-days-ago data)
-        # In reality requires historical DB or second GitHub API call to older commit
-        trend = "stable"
-        if total_coverage_pct > 80:
+            feat = PRFeatureCoverage(
+                pr_number=pr_number,
+                title=f"{title} [{state}]",
+                author=author,
+                total_files=len(source_files) + len(test_files),
+                source_files=len(source_files),
+                test_files=len(test_files),
+                has_tests=is_tested,
+                coverage_status=status,
+            )
+            pr_features.append(feat)
+
+            mod_label = title.split(":")[0].split("(")[0].strip()[:35] or f"PR #{pr_number}"
+            module_coverage[mod_label] = 100.0 if is_tested else 0.0
+
+            if not is_tested:
+                for sf in source_files:
+                    additions = 0
+                    for f in entry.get("_raw_files", []):
+                        if f.get("filename") == sf:
+                            additions = f.get("additions", 0)
+                            break
+                    if additions == 0:
+                        additions = 1
+
+                    if "auth" in sf.lower() or "security" in sf.lower():
+                        risk = "critical — security module"
+                    elif "server" in sf.lower() or "api" in sf.lower() or "app" in sf.lower():
+                        risk = "high — core logic"
+                    else:
+                        risk = "medium — new feature code"
+
+                    all_untested.append(UntestableDiff(
+                        file_path=sf,
+                        lines_uncovered=additions,
+                        risk=risk,
+                        pr_number=pr_number,
+                        pr_title=title,
+                    ))
+
+        coverage_pct = round((tested_features / total_features) * 100, 1) if total_features else 0.0
+
+        if coverage_pct > 70:
             trend = "improving"
-        elif total_coverage_pct < 60:
+        elif coverage_pct < 40:
             trend = "declining"
+        else:
+            trend = "stable"
 
-        return CoverageReport(
-            total_coverage_pct=round(total_coverage_pct, 2),
-            module_coverage={k: round(v, 2) for k, v in module_coverage.items()},
-            untested_diffs=untested_diffs,
-            trend=trend
+        report = CoverageReport(
+            total_coverage_pct=coverage_pct,
+            module_coverage=module_coverage,
+            untested_diffs=all_untested,
+            trend=trend,
+            pr_features=pr_features,
+            total_prs=total_features,
+            prs_with_tests=tested_features,
         )
+        self._cache = report
+        logger.info(
+            "Coverage: %d/%d features tested (%.1f%%)",
+            tested_features, total_features, coverage_pct,
+        )
+        return report
 
-    async def find_untested_diffs(self, pr_files: list[dict[str, Any]], coverage_data: dict[str, Any]) -> list[UntestableDiff]:
-        """
-        Cross-reference changed files in a PR with coverage data to find untested lines.
-        """
-        untested: list[UntestableDiff] = []
-        files_cov = coverage_data.get("files", {})
-        
-        for f in pr_files:
-            filename = f["filename"]
-            # Only care about code files
-            if not filename.endswith((".py", ".js", ".ts", ".tsx", ".jsx", ".go", ".java")):
-                continue
-                
-            # Skip test files themselves
-            if "test" in filename.lower():
-                continue
-                
-            additions = f.get("additions", 0)
-            if additions == 0:
-                continue
-
-            # Check coverage data for this file
-            file_cov = files_cov.get(filename, {})
-            pct = file_cov.get("summary", {}).get("percent_covered", 100.0)
-            
-            # If coverage is missing or less than 100%, we estimate uncovered lines
-            # A true implementation would parse the missing line numbers from coverage data 
-            # and intersect them with the PR patch line numbers.
-            # For this sprint, we estimate based on the file coverage percentage.
-            if pct < 100.0 or filename not in files_cov:
-                # Heuristic: if entirely absent from coverage, all additions are uncovered
-                uncovered = additions if filename not in files_cov else int(additions * ((100.0 - pct) / 100.0))
-                
-                # Ignore trivial changes
-                if uncovered == 0:
-                    continue
-                    
-                # Assess risk
-                if "auth" in filename or "security" in filename.lower():
-                    risk = "critical — security module"
-                elif "app/" in filename or "src/" in filename:
-                    risk = "high — core logic"
-                else:
-                    risk = "medium — standard file"
-                    
-                untested.append(UntestableDiff(
-                    file_path=filename,
-                    lines_uncovered=uncovered,
-                    risk=risk
-                ))
-                
-        # Sort by risk severity (critical > high > medium > low) and lines uncovered
-        severity_map = {"critical": 4, "high": 3, "medium": 2, "low": 1}
-        untested.sort(
-            key=lambda x: (severity_map.get(x.risk.split(" ")[0], 0), x.lines_uncovered), 
-            reverse=True
-        )
-        return untested
-
-    async def generate_test_task(self, untested_diff: UntestableDiff) -> TaskCreate:
-        """
-        Generate a TaskCreate object for the Agent HQ orchestrator to write tests.
-        """
-        # In a deep integration, we'd extract function signatures from the AST.
-        # For now, we instruct the agent generally about the file.
-        prompt = (
-            f"Write comprehensive unit tests for `{untested_diff.file_path}`.\n\n"
-            f"This file recently had {untested_diff.lines_uncovered} lines of code added or modified "
-            f"without corresponding test coverage. Consider this a {untested_diff.risk} priority.\n"
-            f"Please review the logic, identify edge cases, and ensure maximum branch coverage."
-        )
-        
-        return TaskCreate(
-            task=prompt,
-            engine="claude-code",  # Defaulting to an engine good at coding
-            agent_type="test_writer",
-            budget_limit=self.settings.BUDGET_LIMIT_PER_TASK,
-            context_sources=[untested_diff.file_path]
-        )
+    async def _fetch_pr_files(
+        self, pr: dict[str, Any]
+    ) -> tuple[list[str], list[str]]:
+        """Return (source_files, test_files) for a PR."""
+        files = await self.github.get_pr_files(pr["number"])
+        source: list[str] = []
+        tests: list[str] = []
+        for f in files:
+            fname = f.get("filename", "")
+            if _is_test_file(fname):
+                tests.append(fname)
+            elif _is_source_file(fname):
+                source.append(fname)
+        return source, tests
