@@ -37,8 +37,8 @@ class NiaContextProvider:
             # The Nia API at https://apigcp.trynia.ai/mcp uses Bearer token auth.
             headers: dict[str, str] = {"Content-Type": "application/json"}
             
-            # Derive API key from the mcp.json or env (best-effort)
-            self._api_key = self._load_api_key()
+            # Prefer env var NIA_API_KEY, fall back to mcp.json
+            self._api_key = settings.NIA_API_KEY or self._load_api_key()
             if self._api_key:
                 headers["Authorization"] = f"Bearer {self._api_key}"
             
@@ -127,11 +127,13 @@ class NiaContextProvider:
             )
 
     async def _get_mcp_context(self, task: str, repo_path: str) -> ContextPayload:
-        """Call Nia's real MCP tools: search, nia_explore.
+        """Call Nia's real MCP tools: search, nia_explore, get_dependencies, get_architecture.
         
         Nia tool reference:
           - search(query, repositories?, search_mode?) -> semantic code search
           - nia_explore(source_type, source_identifier, action?) -> file tree
+          - get_dependencies(file_path) -> dependency graph
+          - get_architecture() -> high-level module structure
         """
         try:
             # 1. Semantic search using Nia's `search` tool
@@ -148,10 +150,30 @@ class NiaContextProvider:
                 "action": "tree",
             })
             
+            # 3. Get dependency graph for the most relevant files
+            dep_res = None
+            if search_res and isinstance(search_res, list) and len(search_res) > 0:
+                # Use the first result's file path for dependency lookup
+                top_file = search_res[0].get("file_path", "") if isinstance(search_res[0], dict) else ""
+                if top_file:
+                    dep_res = await self._call_mcp_tool("get_dependencies", {
+                        "file_path": top_file,
+                    })
+            
+            # 4. Get high-level architecture summary
+            arch_res = await self._call_mcp_tool("get_architecture", {})
+            
             # Start with mock as base and enrich with real data
             base_payload = mock_get_context(task, repo_path)
             
             # Overwrite with actual MCP results if available
+            if arch_res:
+                arch_summary = json.dumps(arch_res)[:600] if isinstance(arch_res, (dict, list)) else str(arch_res)[:600]
+                base_payload.architectural_context = (
+                    f"Architecture from Nia:\n{arch_summary}\n\n"
+                    + base_payload.architectural_context
+                )
+            
             if explore_res:
                 base_payload.architectural_context = (
                     f"Repository structure from Nia:\n{json.dumps(explore_res)[:800]}\n\n"
@@ -165,6 +187,10 @@ class NiaContextProvider:
                     f"Relevant code context:\n{search_summary}\n\n"
                     + base_payload.architectural_context
                 )
+            
+            if dep_res:
+                dep_list = dep_res if isinstance(dep_res, list) else [str(dep_res)]
+                base_payload.dependencies = list(set(base_payload.dependencies + dep_list))
                 
             return base_payload
             

@@ -29,8 +29,10 @@ class Settings(BaseSettings):
     )
 
     # ── API Keys ─────────────────────────────────────────────────────────
+    ANTHROPIC_API_KEY: str = ""
     NEMOTRON_API_KEY: str = ""
     NEMOTRON_API_URL: str = "https://integrate.api.nvidia.com/v1"
+    NIA_API_KEY: str = ""
     NIA_MCP_URL: str = "http://localhost:3001"
     GITHUB_TOKEN: str = ""
     GITHUB_REPO: str = ""
