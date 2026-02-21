@@ -56,15 +56,12 @@ class LinterRunner:
             
         return f"{tool}: {lines[0]}"
 
-    async def run_checks(self, file_path: str) -> list[GuardrailEvent]:
-        """Run the appropriate linters and return the events.
+    async def run_checks(self, file_path: str) -> GuardrailEvent:
+        """Run the appropriate linters and return a single aggregate event.
         
-        Note: The signature in instructions says -> GuardrailEvent, but if we run
-        both ruff and bandit, returning humans multiple failures is easier. We will
-        return one GuardrailEvent per failed tool, or a single 'passed' one.
-        However, the instruction says:
-        'If ANY check fails: Return GuardrailEvent with passed=False... If all pass: Return Event with passed=True'
-        Therefore, we will return exactly ONE event representing the worst outcome.
+        Returns exactly ONE GuardrailEvent representing the worst outcome:
+        if ANY check fails, returns passed=False with the first error.
+        If all pass, returns passed=True.
         """
         path = Path(file_path)
         ext = path.suffix.lower()

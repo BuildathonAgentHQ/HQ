@@ -33,24 +33,78 @@ class NiaContextProvider:
         self.mcp_url = settings.NIA_MCP_URL
         
         if self.use_nia:
-            # We configure a persistent async client for MCP requests
-            self.client = httpx.AsyncClient(base_url=self.mcp_url, timeout=10.0)
+            # Configure persistent async client with auth header for Nia MCP.
+            # The Nia API at https://apigcp.trynia.ai/mcp uses Bearer token auth.
+            headers: dict[str, str] = {"Content-Type": "application/json"}
+            
+            # Derive API key from the mcp.json or env (best-effort)
+            self._api_key = self._load_api_key()
+            if self._api_key:
+                headers["Authorization"] = f"Bearer {self._api_key}"
+            
+            self.client = httpx.AsyncClient(
+                base_url=self.mcp_url,
+                timeout=15.0,
+                headers=headers,
+            )
         else:
             self.client = None
 
+    @staticmethod
+    def _load_api_key() -> str:
+        """Try to load the Nia API key from .agent_hq/mcp.json."""
+        try:
+            mcp_path = os.path.join(".", ".agent_hq", "mcp.json")
+            if os.path.exists(mcp_path):
+                with open(mcp_path, "r") as f:
+                    config = json.load(f)
+                servers = config.get("mcpServers", {})
+                nia_cfg = servers.get("nia", servers.get("nia-context", {}))
+                auth = nia_cfg.get("headers", {}).get("Authorization", "")
+                if auth.startswith("Bearer "):
+                    return auth[7:]
+        except Exception:
+            pass
+        return ""
+
     async def _call_mcp_tool(self, tool_name: str, arguments: dict[str, Any]) -> Any:
-        """Helper to invoke an MCP tool via the HTTP wrapper."""
+        """Invoke an MCP tool via JSON-RPC over HTTP.
+        
+        Nia MCP tools (per https://docs.trynia.ai/tools-features):
+          - search: semantic search across repos/docs
+          - index: index repos, docs, research papers, local folders
+          - nia_read: read file content from indexed sources
+          - nia_grep: regex search in indexed sources
+          - nia_explore: browse file structure (tree/ls)
+          - nia_research: AI research with quick/deep/oracle modes
+          - nia_advisor: analyze code against documentation
+          - context: cross-agent context sharing
+        """
         if not self.use_nia or not self.client:
             return None
             
         try:
-            # Assuming standard JSON-RPC or REST wrapper for MCP tools
+            # MCP uses JSON-RPC 2.0 format
             response = await self.client.post(
-                "/tools/execute", # standard route for tool invocation
-                json={"name": tool_name, "arguments": arguments}
+                "",  # POST to the base MCP URL itself
+                json={
+                    "jsonrpc": "2.0",
+                    "method": "tools/call",
+                    "params": {
+                        "name": tool_name,
+                        "arguments": arguments,
+                    },
+                    "id": 1,
+                },
             )
             response.raise_for_status()
-            return response.json()
+            result = response.json()
+            
+            # JSON-RPC returns {"result": ...} or {"error": ...}
+            if "error" in result:
+                logger.warning(f"MCP tool '{tool_name}' returned error: {result['error']}")
+                return None
+            return result.get("result")
         except Exception as e:
             logger.warning(f"Failed to call MCP tool '{tool_name}': {e}")
             return None
@@ -73,26 +127,44 @@ class NiaContextProvider:
             )
 
     async def _get_mcp_context(self, task: str, repo_path: str) -> ContextPayload:
-        """Call the MCP server's search_codebase, get_dependencies, and get_architecture."""
+        """Call Nia's real MCP tools: search, nia_explore.
+        
+        Nia tool reference:
+          - search(query, repositories?, search_mode?) -> semantic code search
+          - nia_explore(source_type, source_identifier, action?) -> file tree
+        """
         try:
-            # 1. search_codebase
-            search_res = await self._call_mcp_tool("search_codebase", {"query": task, "path": repo_path})
-            # 2. get_dependencies
-            deps_res = await self._call_mcp_tool("get_dependencies", {"path": repo_path})
-            # 3. get_architecture
-            arch_res = await self._call_mcp_tool("get_architecture", {"path": repo_path})
+            # 1. Semantic search using Nia's `search` tool
+            search_res = await self._call_mcp_tool("search", {
+                "query": task,
+                "search_mode": "unified",
+                "include_sources": True,
+            })
             
-            # Extract basic mock payload or empty items to merge into
+            # 2. Explore repo structure using Nia's `nia_explore` tool
+            explore_res = await self._call_mcp_tool("nia_explore", {
+                "source_type": "repository",
+                "source_identifier": repo_path,
+                "action": "tree",
+            })
+            
+            # Start with mock as base and enrich with real data
             base_payload = mock_get_context(task, repo_path)
             
             # Overwrite with actual MCP results if available
-            if arch_res and "architecture" in arch_res:
-                base_payload.architectural_context = str(arch_res["architecture"])
-            elif search_res:
-                base_payload.architectural_context = f"MCP search results: {json.dumps(search_res)[:500]}"
-                
-            if deps_res and "dependencies" in deps_res:
-                base_payload.dependencies = deps_res["dependencies"]
+            if explore_res:
+                base_payload.architectural_context = (
+                    f"Repository structure from Nia:\n{json.dumps(explore_res)[:800]}\n\n"
+                    + base_payload.architectural_context
+                )
+            
+            if search_res:
+                # Extract dependency/file info from search results
+                search_summary = json.dumps(search_res)[:500] if isinstance(search_res, (dict, list)) else str(search_res)[:500]
+                base_payload.architectural_context = (
+                    f"Relevant code context:\n{search_summary}\n\n"
+                    + base_payload.architectural_context
+                )
                 
             return base_payload
             
@@ -112,8 +184,8 @@ class NiaContextProvider:
             files_scanned = 0
             
             # Simple regex for TS/JS imports
-            js_import_pattern = re.compile(r"import\s+.*?\s+from\s+['\"](.*?)['\"]", re.IGNORECASE)
-            js_require_pattern = re.compile(r"require\(['\"](.*?)['\"]\)", re.IGNORECASE)
+            js_import_pattern = re.compile(r"import\s+.*?\s+from\s+['\"](.+?)['\"]", re.IGNORECASE)
+            js_require_pattern = re.compile(r"require\(['\"](.+?)['\"]\)", re.IGNORECASE)
 
             # Walk the repository looking for .py, .ts, .tsx, .js files
             for root, dirs, files in os.walk(repo_path):
@@ -121,7 +193,7 @@ class NiaContextProvider:
                 dirs[:] = [d for d in dirs if d not in (".git", ".venv", "venv", "node_modules", "dist", ".next")]
                 
                 for file in files:
-                    if files_scanned > 200: # Fast guardrail
+                    if files_scanned > 200:  # Fast guardrail
                         break
                         
                     path = os.path.join(root, file)
@@ -146,7 +218,6 @@ class NiaContextProvider:
                                 content = f.read()
                             
                             for match in js_import_pattern.finditer(content):
-                                # naive module name extraction
                                 module = match.group(1)
                                 if not module.startswith("."):
                                     js_imports.add(module.split("/")[0])
@@ -177,14 +248,17 @@ class NiaContextProvider:
             return base_payload
 
     async def refresh_index(self, repo_path: str = ".") -> None:
-        """Trigger a re-index of the repository in the Nia server."""
+        """Trigger a re-index of the repository in the Nia server.
+        
+        Uses Nia's `index` tool which auto-detects source type.
+        """
         if not self.use_nia or not self.client:
             return
             
         try:
-            await self.client.post("/tools/execute", json={
-                "name": "refresh_index",
-                "arguments": {"path": repo_path}
+            await self._call_mcp_tool("index", {
+                "folder_path": os.path.abspath(repo_path),
+                "resource_type": "local_folder",
             })
             logger.info("Successfully requested Nia MCP index refresh.")
         except Exception as e:
