@@ -1,51 +1,61 @@
-.PHONY: setup dev dev-backend dev-frontend test lint mock check docker-up docker-down clean env
+# Force PowerShell as the shell for Windows compatibility
+SHELL := powershell.exe
+.SHELLFLAGS := -NoProfile -Command
+
+.PHONY: setup dev dev-backend dev-frontend test lint mock check docker-up docker-down clean env help
 
 # ═══════════════════════════════════════════════════════════════════════════════
-#  Agent HQ — Makefile
+#  Agent HQ — Makefile (Windows/PowerShell)
 # ═══════════════════════════════════════════════════════════════════════════════
 
 # ── Setup ─────────────────────────────────────────────────────────────────────
 setup: env                          ## Install all dependencies
-	@echo "📦 Installing backend dependencies…"
+	Write-Host '📦 Installing backend dependencies…'
 	pip install -r backend/requirements.txt
-	@echo "📦 Installing frontend dependencies…"
-	cd frontend && npm install
-	@echo "✅ Setup complete — run 'make dev' to start"
+	Write-Host '📦 Installing frontend dependencies…'
+	Push-Location frontend; npm install; Pop-Location
+	Write-Host '✅ Setup complete — run make dev to start'
 
 env:                                ## Create .env from example if missing
-	@test -f .env || (cp .env.example .env && echo "📝 Created .env from .env.example")
+	if (-not (Test-Path .env)) { Copy-Item .env.example .env; Write-Host '📝 Created .env from .env.example' }
 
 # ── Development ───────────────────────────────────────────────────────────────
 dev: env                            ## Start backend + frontend concurrently
-	@echo "🚀 Starting Agent HQ (backend:$${WS_PORT:-8000} + frontend:3000)…"
-	@PYTHONPATH=. uvicorn backend.app.main:app --reload --host 0.0.0.0 --port $${WS_PORT:-8000} & \
-	cd frontend && npm run dev & \
-	wait
+	Write-Host '🚀 Starting Agent HQ (backend + frontend)…'
+	$$backendPort = if ($$env:WS_PORT) { $$env:WS_PORT } else { '8000' }; \
+	$$env:PYTHONPATH = '.'; \
+	$$backend = Start-Process -PassThru -NoNewWindow pwsh -ArgumentList '-NoProfile','-Command',"uvicorn backend.app.main:app --reload --host 0.0.0.0 --port $$backendPort"; \
+	Push-Location frontend; npm run dev; Pop-Location; \
+	Stop-Process -Id $$backend.Id -ErrorAction SilentlyContinue
 
 dev-backend: env                    ## Start backend only
-	PYTHONPATH=. uvicorn backend.app.main:app --reload --host 0.0.0.0 --port $${WS_PORT:-8000}
+	$$backendPort = if ($$env:WS_PORT) { $$env:WS_PORT } else { '8000' }; \
+	$$env:PYTHONPATH = '.'; \
+	uvicorn backend.app.main:app --reload --host 0.0.0.0 --port $$backendPort
 
 dev-frontend:                       ## Start frontend only
-	cd frontend && npm run dev
+	Push-Location frontend; npm run dev; Pop-Location
 
 # ── Mock server ───────────────────────────────────────────────────────────────
 mock: env                           ## Start the standalone mock server
-	@echo "🧪 Starting mock server on :8000…"
-	PYTHONPATH=. python -m shared.mocks.mock_websocket
+	Write-Host '🧪 Starting mock server on :8000…'
+	$$env:PYTHONPATH = '.'; python -m shared.mocks.mock_websocket
 
 # ── Testing ───────────────────────────────────────────────────────────────────
 test:                               ## Run all tests
-	PYTHONPATH=. pytest backend/tests/ -v && cd frontend && npm test
+	$$env:PYTHONPATH = '.'; pytest backend/tests/ -v
+	Push-Location frontend; npm test; Pop-Location
 
 test-backend:                       ## Run backend tests only
-	PYTHONPATH=. pytest backend/tests/ -v
+	$$env:PYTHONPATH = '.'; pytest backend/tests/ -v
 
 test-frontend:                      ## Run frontend tests only
-	cd frontend && npm test
+	Push-Location frontend; npm test; Pop-Location
 
 # ── Linting ───────────────────────────────────────────────────────────────────
 lint:                               ## Run linters (ruff + next lint)
-	ruff check backend/ shared/ && cd frontend && npm run lint
+	ruff check backend/ shared/
+	Push-Location frontend; npm run lint; Pop-Location
 
 lint-fix:                           ## Auto-fix lint issues
 	ruff check --fix backend/ shared/
@@ -68,10 +78,11 @@ check: lint test                    ## Lint + test (CI gate)
 
 # ── Cleanup ───────────────────────────────────────────────────────────────────
 clean:                              ## Remove build artifacts
-	rm -rf frontend/.next frontend/node_modules/.cache
-	find . -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true
-	@echo "🧹 Cleaned"
+	if (Test-Path frontend/.next) { Remove-Item -Recurse -Force frontend/.next }
+	if (Test-Path frontend/node_modules/.cache) { Remove-Item -Recurse -Force frontend/node_modules/.cache }
+	Get-ChildItem -Recurse -Directory -Filter __pycache__ -ErrorAction SilentlyContinue | Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
+	Write-Host '🧹 Cleaned'
 
 # ── Help ──────────────────────────────────────────────────────────────────────
 help:                               ## Show this help
-	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-18s\033[0m %s\n", $$1, $$2}'
+	Get-Content $(MAKEFILE_LIST) | Select-String '^\w.*##' | ForEach-Object { $$line = $$_ -replace ':\s*(?:.*?)##\s*', '||'; $$parts = $$line -split '\|\|'; Write-Host ('  {0,-18} {1}' -f $$parts[0], $$parts[1]) -ForegroundColor Cyan }
