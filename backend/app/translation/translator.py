@@ -150,11 +150,8 @@ class TranslationLayer:
     @staticmethod
     def _translate_via_templates(raw_event: RawStreamEvent) -> TranslatedEvent:
         """Use the regex pattern library as the translation backend."""
-        result = template_translate(raw_event.raw_content)
-        return TranslatedEvent(
-            task_id=raw_event.task_id,
-            **result,
-        )
+        result = template_translate(raw_event.raw_content, task_id=raw_event.task_id)
+        return result
 
     # ── Value clamping helpers ───────────────────────────────────────────
 

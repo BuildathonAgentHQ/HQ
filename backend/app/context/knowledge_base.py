@@ -71,14 +71,17 @@ class KnowledgeBase:
             The generated doc_id.
         """
         try:
-            reader = PdfReader(io.BytesIO(file_content))
-            extracted_text = []
-            for page in reader.pages:
-                text = page.extract_text()
-                if text:
-                    extracted_text.append(text)
-                    
-            full_text = "\n".join(extracted_text)
+            try:
+                reader = PdfReader(io.BytesIO(file_content))
+                extracted_text = []
+                for page in reader.pages:
+                    text = page.extract_text()
+                    if text:
+                        extracted_text.append(text)
+                full_text = "\n".join(extracted_text)
+            except Exception:
+                logger.warning(f"PDF parsing failed for {filename}; treating as plain text")
+                full_text = file_content.decode("utf-8", errors="replace")
             
             # Basic chunking: 500 characters with 50 character overlap
             chunk_size = 500

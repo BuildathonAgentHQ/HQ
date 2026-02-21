@@ -34,7 +34,9 @@ class EventType(str, Enum):
     APPROVAL_REQUIRED = "approval_required"
     BUDGET_EXCEEDED = "budget_exceeded"
     DEBATE = "debate"
+    DEBATE_STARTED = "debate"
     GUARDRAIL = "guardrail"
+    GUARDRAIL_TRIGGERED = "guardrail"
     TASK_LIFECYCLE = "task_lifecycle"
 
 

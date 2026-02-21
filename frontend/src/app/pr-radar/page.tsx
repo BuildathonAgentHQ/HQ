@@ -18,7 +18,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 
 interface PRRiskFactors {
-    diff_size: int;
+    diff_size: number;
     core_files_changed: boolean;
     missing_tests: boolean;
     churn_score: number;

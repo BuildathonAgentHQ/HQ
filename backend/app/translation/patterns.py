@@ -13,6 +13,8 @@ import re
 from dataclasses import dataclass, field
 from typing import Literal
 
+from shared.schemas import TranslatedEvent
+
 
 # ── ANSI escape code stripper ────────────────────────────────────────────────
 
@@ -383,20 +385,12 @@ PATTERN_MAP: list[PatternEntry] = [
 # ── Public API ───────────────────────────────────────────────────────────────
 
 
-def template_translate(raw_content: str) -> dict:
+def template_translate(raw_content: str, task_id: str = "unknown") -> TranslatedEvent:
     """Translate *raw_content* via regex pattern matching.
 
-    Returns a dict with keys matching ``TranslatedEvent`` fields
-    (minus ``task_id``, which the caller supplies):
-
-        {
-            "status":   str,
-            "is_error": bool,
-            "severity": "info" | "warning" | "error",
-            "category": "setup" | "coding" | … | "completed",
-        }
-
-    Falls back to a generic "Agent is working…" if no pattern matches.
+    Returns a ``TranslatedEvent`` with appropriate status, severity, and
+    category.  Falls back to a generic "Agent is working…" if no pattern
+    matches.
     """
     cleaned = strip_ansi(raw_content).strip()
 
@@ -408,22 +402,22 @@ def template_translate(raw_content: str) -> dict:
             except (IndexError, KeyError):
                 status_text = entry.status
 
-            # Truncate to ~15 words if the template expansion got long
             words = status_text.split()
             if len(words) > 15:
                 status_text = " ".join(words[:15]) + "…"
 
-            return {
-                "status": status_text,
-                "is_error": entry.is_error,
-                "severity": entry.severity,
-                "category": entry.category,
-            }
+            return TranslatedEvent(
+                task_id=task_id,
+                status=status_text,
+                is_error=entry.is_error,
+                severity=entry.severity,
+                category=entry.category,
+            )
 
-    # ── Fallback — no pattern matched ────────────────────────────────────
-    return {
-        "status": "Agent is working…",
-        "is_error": False,
-        "severity": "info",
-        "category": "coding",
-    }
+    return TranslatedEvent(
+        task_id=task_id,
+        status="Agent is working…",
+        is_error=False,
+        severity="info",
+        category="coding",
+    )
