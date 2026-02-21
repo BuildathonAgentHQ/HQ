@@ -20,8 +20,10 @@ import asyncio
 import logging
 import os
 import pty
+import shutil
 import signal
 import subprocess
+import tempfile
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
@@ -67,6 +69,7 @@ class ProcessManager:
     """
 
     MCP_CONFIG_PATH = ".agent_hq/mcp.json"
+    WORKSPACES_DIR = Path(tempfile.gettempdir()) / "agent_hq_workspaces"
 
     def __init__(self, event_router: Any) -> None:
         """
@@ -77,6 +80,7 @@ class ProcessManager:
         self._event_router = event_router
         self._translator = TranslationLayer(settings)
         self.active_processes: dict[str, ManagedProcess] = {}
+        self.WORKSPACES_DIR.mkdir(parents=True, exist_ok=True)
         logger.info("ProcessManager initialised (translator=%s)",
                     "nemotron" if settings.USE_NEMOTRON else "templates")
 
@@ -108,6 +112,16 @@ class ProcessManager:
         cmd = self._build_command(task, context)
         logger.info("Spawning agent for task %s: %s", task.id, " ".join(cmd))
 
+        # ── Prepare workspace (clone repo) ──────────────────────────────
+        workspace_dir = self._prepare_workspace(task.id)
+        logger.info("Workspace for task %s: %s", task.id, workspace_dir)
+
+        # ── Build environment with GitHub token ─────────────────────────
+        env = os.environ.copy()
+        if settings.GITHUB_TOKEN:
+            env["GITHUB_TOKEN"] = settings.GITHUB_TOKEN
+            env["GH_TOKEN"] = settings.GITHUB_TOKEN
+
         # ── Create PTY pair ─────────────────────────────────────────────
         master_fd, slave_fd = pty.openpty()
 
@@ -120,6 +134,8 @@ class ProcessManager:
                 stderr=slave_fd,
                 close_fds=True,
                 start_new_session=True,
+                cwd=str(workspace_dir),
+                env=env,
             )
         except FileNotFoundError:
             os.close(master_fd)
@@ -246,6 +262,7 @@ class ProcessManager:
                     )
                     await self._emit_lifecycle(task_id, status, exit_code)
                     self._cleanup(task_id)
+                    self._cleanup_workspace(task_id)
                     return
                 await asyncio.sleep(0.5)
         except asyncio.CancelledError:
@@ -341,6 +358,67 @@ class ProcessManager:
 
     # ── Internals ───────────────────────────────────────────────────────────
 
+    def _prepare_workspace(self, task_id: str) -> Path:
+        """Clone the configured GitHub repo into a temp workspace.
+
+        If `GITHUB_REPO` is set, clones it using the token for auth.
+        Otherwise creates an empty temp directory.
+
+        Returns:
+            Path to the workspace directory.
+        """
+        workspace = self.WORKSPACES_DIR / task_id[:12]
+        # Always start fresh
+        if workspace.exists():
+            shutil.rmtree(workspace, ignore_errors=True)
+
+        repo = settings.GITHUB_REPO  # e.g. "BuildathonAgentHQ/test"
+        token = settings.GITHUB_TOKEN
+
+        if repo and token:
+            clone_url = f"https://x-access-token:{token}@github.com/{repo}.git"
+            logger.info("Cloning %s into workspace %s", repo, workspace)
+            try:
+                result = subprocess.run(
+                    ["git", "clone", "--depth", "1", clone_url, str(workspace)],
+                    capture_output=True,
+                    text=True,
+                    timeout=60,
+                )
+                if result.returncode != 0:
+                    logger.error("git clone failed (rc=%d): %s", result.returncode, result.stderr)
+                    # Create dir anyway as fallback
+                    workspace.mkdir(parents=True, exist_ok=True)
+                else:
+                    logger.info("Cloned %s successfully into %s", repo, workspace)
+                    # Configure git user for commits
+                    subprocess.run(
+                        ["git", "config", "user.email", "agent-hq@example.com"],
+                        cwd=str(workspace), capture_output=True,
+                    )
+                    subprocess.run(
+                        ["git", "config", "user.name", "Agent HQ"],
+                        cwd=str(workspace), capture_output=True,
+                    )
+            except subprocess.TimeoutExpired:
+                logger.error("git clone timed out for %s", repo)
+                workspace.mkdir(parents=True, exist_ok=True)
+            except FileNotFoundError:
+                logger.error("git binary not found — cannot clone repo")
+                workspace.mkdir(parents=True, exist_ok=True)
+        else:
+            logger.warning("No GITHUB_REPO/TOKEN configured — workspace is empty")
+            workspace.mkdir(parents=True, exist_ok=True)
+
+        return workspace
+
+    def _cleanup_workspace(self, task_id: str) -> None:
+        """Remove the workspace directory for a completed task."""
+        workspace = self.WORKSPACES_DIR / task_id[:12]
+        if workspace.exists():
+            shutil.rmtree(workspace, ignore_errors=True)
+            logger.info("Cleaned up workspace for task %s", task_id)
+
     def _build_command(
         self,
         task: Task,
@@ -369,10 +447,10 @@ class ProcessManager:
                 prompt = "\n".join(ctx_parts) + "\n\nTask: " + prompt
 
         if task.engine == "claude-code":
-            cmd = ["claude", "-p", prompt]
-            # Add MCP config if it exists
+            cmd = ["claude", "-p", prompt, "--dangerously-skip-permissions"]
+            # Add MCP config if it exists and feature flag is enabled
             mcp_path = Path(self.MCP_CONFIG_PATH)
-            if mcp_path.exists():
+            if settings.USE_NIA_MCP and mcp_path.exists():
                 cmd.extend(["--mcp-config", str(mcp_path)])
             return cmd
 

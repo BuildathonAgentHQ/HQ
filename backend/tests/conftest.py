@@ -179,6 +179,8 @@ def mock_settings() -> Settings:
         USE_NIA_MCP=False,
         USE_DATABRICKS=False,
         USE_GITHUB=False,
+        USE_CLAUDE_API=False,
+        CLAUDE_MODEL="claude-sonnet-4-20250514",
     )
 
 

@@ -66,6 +66,14 @@ class Settings(BaseSettings):
     """False = use mock GitHub data (mock_github.py).
     True  = connect to GitHub REST API with GITHUB_TOKEN."""
 
+    USE_CLAUDE_API: bool = True
+    """True  = use Claude API as the core intelligence engine.
+    False = disable Claude API calls (for offline / mock mode)."""
+
+    # ── Claude API ────────────────────────────────────────────────────────
+    CLAUDE_MODEL: str = "claude-sonnet-4-20250514"
+    """Which Anthropic model to use. Default is Sonnet (fast + smart)."""
+
 
 
 

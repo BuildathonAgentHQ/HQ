@@ -107,20 +107,16 @@ class ConnectionManager:
     # ── Sending ─────────────────────────────────────────────────────────────
 
     async def broadcast(self, event: WebSocketEvent) -> None:
-        """Send an event to ALL connected clients.
-
-        Dead connections are automatically pruned.
-
-        Args:
-            event: A ``WebSocketEvent`` envelope to broadcast.
-        """
+        """Send an event to ALL connected clients."""
         payload = event.model_dump(mode="json")
+        logger.info(f"Broadcasting event {event.event_type} to {len(self.active_connections)} clients")
         dead: list[WebSocket] = []
 
         for ws in self.active_connections:
             try:
                 await ws.send_json(payload)
-            except Exception:
+            except Exception as e:
+                logger.error(f"Failed to send to {id(ws)}: {e}")
                 dead.append(ws)
 
         for ws in dead:

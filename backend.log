@@ -1,0 +1,507 @@
+2026-02-21 15:10:01,233 [INFO] backend.app.orchestrator.task_manager: TaskManager initialised with 5 tasks (seed_mock=True)
+2026-02-21 15:10:01,273 [INFO] backend.app.translation.translator: TranslationLayer: Nemotron enabled → https://integrate.api.nvidia.com/v1/chat/completions (model nvidia/llama-3.1-nemotron-nano-8b-v1)
+2026-02-21 15:10:01,273 [INFO] backend.app.orchestrator.process_manager: ProcessManager initialised (translator=nemotron)
+2026-02-21 15:10:01,613 [INFO] numexpr.utils: NumExpr defaulting to 10 threads.
+2026-02-21 15:10:01,760 [INFO] backend.app.telemetry.agent_telemetry: AgentTelemetry: Using MockMLflowClient (in-memory)
+INFO:     Started server process [33870]
+INFO:     Waiting for application startup.
+2026-02-21 15:10:03,734 [INFO] httpx: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-02-21 15:10:03,735 [INFO] backend.app.claude_client.client: Claude request: model=claude-sonnet-4-20250514 input_tokens=20 output_tokens=4 latency=1.29s
+2026-02-21 15:10:03,735 [INFO] backend.app.main: ✅ Claude API connected — model=claude-sonnet-4-20250514, tokens=24
+2026-02-21 15:10:04,248 [INFO] httpx: HTTP Request: GET https://api.github.com/repos/BuildathonAgentHQ/test/pulls?state=open "HTTP/1.1 200 OK"
+2026-02-21 15:10:04,250 [INFO] backend.app.main: ✅ GitHub API connected — repo=BuildathonAgentHQ/test, open PRs=5
+2026-02-21 15:10:04,250 [INFO] backend.app.main: 🚀 Agent HQ v2 started — Claude=✅ | GitHub=✅ | Swarm=enabled
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:8001 (Press CTRL+C to quit)
+INFO:     127.0.0.1:49288 - "WebSocket /ws/activity" [accepted]
+2026-02-21 15:10:04,663 [INFO] backend.app.websocket.manager: WebSocket connected — 1 active connection(s)
+2026-02-21 15:10:04,663 [INFO] backend.app.main: WebSocket 12971671248 accepted successfully.
+INFO:     connection open
+2026-02-21 15:10:04,663 [INFO] backend.app.main: WebSocket 12971671248 waiting to receive...
+INFO:     127.0.0.1:49290 - "WebSocket /ws/activity" [accepted]
+2026-02-21 15:10:04,683 [INFO] backend.app.websocket.manager: WebSocket connected — 2 active connection(s)
+2026-02-21 15:10:04,683 [INFO] backend.app.main: WebSocket 12971821824 accepted successfully.
+INFO:     connection open
+2026-02-21 15:10:04,683 [INFO] backend.app.main: WebSocket 12971821824 waiting to receive...
+INFO:     127.0.0.1:49330 - "WebSocket /ws/activity" [accepted]
+2026-02-21 15:10:09,622 [INFO] backend.app.websocket.manager: WebSocket connected — 3 active connection(s)
+2026-02-21 15:10:09,622 [INFO] backend.app.main: WebSocket 12973556656 accepted successfully.
+INFO:     connection open
+2026-02-21 15:10:09,623 [INFO] backend.app.main: WebSocket 12973556656 waiting to receive...
+INFO:     127.0.0.1:49332 - "WebSocket /ws/activity" [accepted]
+2026-02-21 15:10:09,637 [INFO] backend.app.websocket.manager: WebSocket connected — 4 active connection(s)
+2026-02-21 15:10:09,637 [INFO] backend.app.main: WebSocket 12971845536 accepted successfully.
+INFO:     connection open
+2026-02-21 15:10:09,638 [INFO] backend.app.main: WebSocket 12971845536 waiting to receive...
+🚀 Agent HQ v2 started — Claude=✅ | GitHub=✅ | Swarm=enabled
+INFO:     127.0.0.1:49345 - "OPTIONS /api/metrics/radar HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49346 - "OPTIONS /api/metrics/leaderboard HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49346 - "GET /api/metrics/radar HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49345 - "GET /api/metrics/leaderboard HTTP/1.1" 200 OK
+2026-02-21 15:10:13,540 [INFO] backend.app.orchestrator.task_manager: Created task e8354802-3d59-417d-b6bc-f2a81a4aa30d (engine=claude-code)
+2026-02-21 15:10:13,540 [INFO] backend.app.orchestrator.router: Task created: e8354802-3d59-417d-b6bc-f2a81a4aa30d (engine=claude-code)
+2026-02-21 15:10:13,540 [INFO] backend.app.orchestrator.router: Attempting to spawn agent for task e8354802-3d59-417d-b6bc-f2a81a4aa30d...
+2026-02-21 15:10:13,540 [INFO] backend.app.orchestrator.process_manager: Spawning agent for task e8354802-3d59-417d-b6bc-f2a81a4aa30d: claude -p Create a hello.txt file with Hello World text and commit it --dangerously-skip-permissions
+2026-02-21 15:10:13,540 [INFO] backend.app.orchestrator.process_manager: Cloning BuildathonAgentHQ/test into workspace /var/folders/zl/4p8qhx2j7c1c8c193jlwt8_w0000gn/T/agent_hq_workspaces/e8354802-3d5
+2026-02-21 15:10:13,839 [INFO] backend.app.orchestrator.process_manager: Cloned BuildathonAgentHQ/test successfully into /var/folders/zl/4p8qhx2j7c1c8c193jlwt8_w0000gn/T/agent_hq_workspaces/e8354802-3d5
+2026-02-21 15:10:13,852 [INFO] backend.app.orchestrator.process_manager: Workspace for task e8354802-3d59-417d-b6bc-f2a81a4aa30d: /var/folders/zl/4p8qhx2j7c1c8c193jlwt8_w0000gn/T/agent_hq_workspaces/e8354802-3d5
+2026-02-21 15:10:13,856 [INFO] backend.app.websocket.manager: Broadcasting event task_lifecycle to 4 clients
+2026-02-21 15:10:13,856 [INFO] backend.app.orchestrator.process_manager: Agent spawned for task e8354802-3d59-417d-b6bc-f2a81a4aa30d (pid 34228)
+2026-02-21 15:10:13,856 [INFO] backend.app.orchestrator.router: Agent spawned successfully for task e8354802-3d59-417d-b6bc-f2a81a4aa30d (status=running)
+INFO:     127.0.0.1:49353 - "POST /api/tasks/ HTTP/1.1" 200 OK
+2026-02-21 15:10:27,786 [INFO] httpx: HTTP Request: POST https://integrate.api.nvidia.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-02-21 15:10:27,788 [INFO] backend.app.websocket.manager: Broadcasting event status_update to 4 clients
+2026-02-21 15:10:28,406 [INFO] httpx: HTTP Request: POST https://integrate.api.nvidia.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-02-21 15:10:28,407 [INFO] backend.app.websocket.manager: Broadcasting event status_update to 4 clients
+2026-02-21 15:10:28,883 [INFO] backend.app.orchestrator.process_manager: Task e8354802-3d59-417d-b6bc-f2a81a4aa30d exited with code 0 → success
+2026-02-21 15:10:28,884 [INFO] backend.app.websocket.manager: Broadcasting event task_lifecycle to 4 clients
+2026-02-21 15:10:28,893 [INFO] backend.app.orchestrator.process_manager: Cleaned up workspace for task e8354802-3d59-417d-b6bc-f2a81a4aa30d
+INFO:     127.0.0.1:49510 - "GET /api/metrics/radar HTTP/1.1" 200 OK
+2026-02-21 15:11:00,911 [INFO] backend.app.websocket.manager: WebSocket disconnected — 3 active connection(s)
+2026-02-21 15:11:00,912 [INFO] backend.app.websocket.manager: WebSocket disconnected — 2 active connection(s)
+2026-02-21 15:11:00,912 [INFO] backend.app.websocket.manager: WebSocket disconnected — 1 active connection(s)
+2026-02-21 15:11:00,913 [INFO] backend.app.websocket.manager: WebSocket disconnected — 0 active connection(s)
+INFO:     connection closed
+INFO:     connection closed
+INFO:     connection closed
+INFO:     connection closed
+INFO:     127.0.0.1:49608 - "WebSocket /ws/activity" [accepted]
+2026-02-21 15:11:01,707 [INFO] backend.app.websocket.manager: WebSocket connected — 1 active connection(s)
+2026-02-21 15:11:01,707 [INFO] backend.app.main: WebSocket 12973072976 accepted successfully.
+INFO:     connection open
+INFO:     127.0.0.1:49611 - "GET /api/metrics/radar HTTP/1.1" 200 OK
+2026-02-21 15:11:01,709 [INFO] backend.app.main: WebSocket 12973072976 waiting to receive...
+INFO:     127.0.0.1:49612 - "GET /api/metrics/leaderboard HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49611 - "OPTIONS /api/swarm/plans/active HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49614 - "OPTIONS /api/tasks/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49612 - "GET /api/metrics/radar HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49617 - "GET /api/timeline HTTP/1.1" 307 Temporary Redirect
+INFO:     127.0.0.1:49611 - "OPTIONS /api/tasks/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49614 - "OPTIONS /api/repos HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49619 - "OPTIONS /api/repos HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49617 - "OPTIONS /api/control-plane/reviews/recent HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49612 - "OPTIONS /api/swarm/plans/active HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49620 - "OPTIONS /api/control-plane/reviews/recent HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49611 - "GET /api/metrics/leaderboard HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49619 - "GET /api/tasks/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49614 - "GET /api/timeline HTTP/1.1" 307 Temporary Redirect
+INFO:     127.0.0.1:49623 - "WebSocket /ws/activity" [accepted]
+2026-02-21 15:11:01,723 [INFO] backend.app.websocket.manager: WebSocket connected — 2 active connection(s)
+2026-02-21 15:11:01,723 [INFO] backend.app.main: WebSocket 12973609744 accepted successfully.
+INFO:     connection open
+INFO:     127.0.0.1:49612 - "GET /api/swarm/plans/active HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49617 - "GET /api/tasks/ HTTP/1.1" 200 OK
+2026-02-21 15:11:01,727 [INFO] backend.app.main: WebSocket 12973609744 waiting to receive...
+INFO:     127.0.0.1:49620 - "GET /api/repos HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49614 - "GET /api/control-plane/reviews/recent HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49619 - "GET /api/swarm/plans/active HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49617 - "GET /api/repos HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49612 - "GET /api/control-plane/reviews/recent HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49626 - "WebSocket /ws/activity" [accepted]
+2026-02-21 15:11:01,739 [INFO] backend.app.websocket.manager: WebSocket connected — 3 active connection(s)
+2026-02-21 15:11:01,739 [INFO] backend.app.main: WebSocket 12973597296 accepted successfully.
+INFO:     connection open
+2026-02-21 15:11:01,739 [INFO] backend.app.main: WebSocket 12973597296 waiting to receive...
+INFO:     127.0.0.1:49627 - "WebSocket /ws/activity" [accepted]
+2026-02-21 15:11:01,753 [INFO] backend.app.websocket.manager: WebSocket connected — 4 active connection(s)
+2026-02-21 15:11:01,753 [INFO] backend.app.main: WebSocket 12964375696 accepted successfully.
+INFO:     connection open
+2026-02-21 15:11:01,754 [INFO] backend.app.main: WebSocket 12964375696 waiting to receive...
+2026-02-21 15:11:01,782 [INFO] backend.app.websocket.manager: WebSocket disconnected — 3 active connection(s)
+2026-02-21 15:11:01,783 [INFO] backend.app.websocket.manager: WebSocket disconnected — 2 active connection(s)
+INFO:     connection closed
+INFO:     127.0.0.1:49617 - "GET /api/timeline/ HTTP/1.1" 200 OK
+INFO:     connection closed
+INFO:     127.0.0.1:49612 - "GET /api/timeline/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49633 - "WebSocket /ws/activity" [accepted]
+2026-02-21 15:11:02,784 [INFO] backend.app.websocket.manager: WebSocket connected — 3 active connection(s)
+2026-02-21 15:11:02,784 [INFO] backend.app.main: WebSocket 12964523264 accepted successfully.
+INFO:     connection open
+2026-02-21 15:11:02,785 [INFO] backend.app.main: WebSocket 12964523264 waiting to receive...
+INFO:     127.0.0.1:49635 - "WebSocket /ws/activity" [accepted]
+2026-02-21 15:11:02,797 [INFO] backend.app.websocket.manager: WebSocket connected — 4 active connection(s)
+2026-02-21 15:11:02,797 [INFO] backend.app.main: WebSocket 12973266160 accepted successfully.
+INFO:     connection open
+2026-02-21 15:11:02,798 [INFO] backend.app.main: WebSocket 12973266160 waiting to receive...
+2026-02-21 15:11:06,134 [INFO] backend.app.websocket.manager: WebSocket disconnected — 3 active connection(s)
+INFO:     connection closed
+INFO:     127.0.0.1:49612 - "GET /api/repos HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49617 - "GET /api/repos HTTP/1.1" 200 OK
+2026-02-21 15:11:15,389 [INFO] httpx: HTTP Request: GET https://api.github.com/repos/BuildathonAgentHQ/test "HTTP/1.1 200 OK"
+2026-02-21 15:11:15,393 [INFO] backend.app.repo_manager.manager: Cloning BuildathonAgentHQ/test locally to /tmp/agent_hq_repos/beac12db-e1b8-4510-a990-d91e572b745e
+2026-02-21 15:11:15,713 [INFO] backend.app.repo_manager.manager: Successfully cloned BuildathonAgentHQ/test
+2026-02-21 15:11:15,713 [INFO] backend.app.websocket.manager: Broadcasting event repo_added to 3 clients
+2026-02-21 15:11:15,713 [INFO] backend.app.repo_manager.manager: Repo added: BuildathonAgentHQ/test (id=beac12db-e1b8-4510-a990-d91e572b745e)
+INFO:     127.0.0.1:49704 - "POST /api/repos HTTP/1.1" 200 OK
+2026-02-21 15:11:15,714 [INFO] backend.app.claude_client.repo_analyzer: Building semantic index for repo: BuildathonAgentHQ/test
+INFO:     127.0.0.1:49704 - "GET /api/repos HTTP/1.1" 200 OK
+2026-02-21 15:11:16,015 [INFO] httpx: HTTP Request: GET https://api.github.com/repos/BuildathonAgentHQ/test/git/trees/master?recursive=1 "HTTP/1.1 200 OK"
+INFO:     127.0.0.1:49732 - "GET /api/metrics/radar HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49734 - "WebSocket /ws/activity" [accepted]
+2026-02-21 15:11:20,385 [INFO] backend.app.websocket.manager: WebSocket connected — 4 active connection(s)
+2026-02-21 15:11:20,385 [INFO] backend.app.main: WebSocket 12973438112 accepted successfully.
+INFO:     connection closed
+2026-02-21 15:11:20,387 [INFO] backend.app.websocket.manager: WebSocket disconnected — 3 active connection(s)
+2026-02-21 15:11:20,387 [INFO] backend.app.main: WebSocket 12973438112 waiting to receive...
+2026-02-21 15:11:20,387 [ERROR] backend.app.main: WebSocket error
+Traceback (most recent call last):
+  File "/Users/notsofit/Documents/Hackathon/agent-hq/backend/app/main.py", line 237, in websocket_activity
+    data: dict[str, Any] = await websocket.receive_json()
+                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/anaconda3/lib/python3.13/site-packages/starlette/websockets.py", line 134, in receive_json
+    raise RuntimeError('WebSocket is not connected. Need to call "accept" first.')
+RuntimeError: WebSocket is not connected. Need to call "accept" first.
+2026-02-21 15:11:20,390 [INFO] backend.app.websocket.manager: WebSocket disconnected — 3 active connection(s)
+INFO:     127.0.0.1:49737 - "GET /api/metrics/leaderboard HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49732 - "GET /api/swarm/plans/active HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49738 - "GET /api/timeline HTTP/1.1" 307 Temporary Redirect
+INFO:     127.0.0.1:49741 - "GET /api/tasks/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49743 - "GET /api/repos HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49744 - "GET /api/control-plane/reviews/recent HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49737 - "GET /api/metrics/radar HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49746 - "WebSocket /ws/activity" [accepted]
+2026-02-21 15:11:20,395 [INFO] backend.app.websocket.manager: WebSocket connected — 4 active connection(s)
+2026-02-21 15:11:20,395 [INFO] backend.app.main: WebSocket 12973439552 accepted successfully.
+INFO:     connection open
+INFO:     127.0.0.1:49738 - "GET /api/metrics/leaderboard HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49732 - "GET /api/swarm/plans/active HTTP/1.1" 200 OK
+2026-02-21 15:11:20,399 [INFO] backend.app.main: WebSocket 12973439552 waiting to receive...
+INFO:     127.0.0.1:49741 - "GET /api/timeline HTTP/1.1" 307 Temporary Redirect
+INFO:     127.0.0.1:49743 - "GET /api/tasks/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49744 - "GET /api/repos HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49737 - "GET /api/control-plane/reviews/recent HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49737 - "GET /api/timeline/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49737 - "GET /api/timeline/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49752 - "WebSocket /ws/activity" [accepted]
+2026-02-21 15:11:21,385 [INFO] backend.app.websocket.manager: WebSocket connected — 5 active connection(s)
+2026-02-21 15:11:21,385 [INFO] backend.app.main: WebSocket 12973440848 accepted successfully.
+INFO:     connection open
+2026-02-21 15:11:21,386 [INFO] backend.app.main: WebSocket 12973440848 waiting to receive...
+INFO:     127.0.0.1:49737 - "OPTIONS /api/repos/beac12db-e1b8-4510-a990-d91e572b745e/prs HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49741 - "OPTIONS /api/repos/beac12db-e1b8-4510-a990-d91e572b745e/prs HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49737 - "GET /api/repos/beac12db-e1b8-4510-a990-d91e572b745e/prs HTTP/1.1" 200 OK
+2026-02-21 15:11:21,665 [INFO] backend.app.websocket.manager: WebSocket disconnected — 4 active connection(s)
+INFO:     connection closed
+INFO:     127.0.0.1:49741 - "GET /api/repos/beac12db-e1b8-4510-a990-d91e572b745e/prs HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49741 - "GET /api/tasks/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49737 - "GET /api/tasks/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49737 - "GET /api/metrics/radar HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49741 - "GET /api/metrics/leaderboard HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49776 - "WebSocket /ws/activity" [accepted]
+2026-02-21 15:11:26,263 [INFO] backend.app.websocket.manager: WebSocket connected — 5 active connection(s)
+2026-02-21 15:11:26,263 [INFO] backend.app.main: WebSocket 12974015264 accepted successfully.
+INFO:     connection open
+INFO:     127.0.0.1:49780 - "GET /api/timeline HTTP/1.1" 307 Temporary Redirect
+INFO:     127.0.0.1:49737 - "GET /api/swarm/plans/active HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49741 - "GET /api/metrics/radar HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49782 - "GET /api/tasks/ HTTP/1.1" 200 OK
+2026-02-21 15:11:26,270 [INFO] backend.app.websocket.manager: WebSocket disconnected — 4 active connection(s)
+2026-02-21 15:11:26,270 [INFO] backend.app.main: WebSocket 12974015264 waiting to receive...
+2026-02-21 15:11:26,271 [ERROR] backend.app.main: WebSocket error
+Traceback (most recent call last):
+  File "/Users/notsofit/Documents/Hackathon/agent-hq/backend/app/main.py", line 237, in websocket_activity
+    data: dict[str, Any] = await websocket.receive_json()
+                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/anaconda3/lib/python3.13/site-packages/starlette/websockets.py", line 134, in receive_json
+    raise RuntimeError('WebSocket is not connected. Need to call "accept" first.')
+RuntimeError: WebSocket is not connected. Need to call "accept" first.
+2026-02-21 15:11:26,271 [INFO] backend.app.websocket.manager: WebSocket disconnected — 4 active connection(s)
+INFO:     127.0.0.1:49783 - "GET /api/repos HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49780 - "GET /api/metrics/leaderboard HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49784 - "GET /api/control-plane/reviews/recent HTTP/1.1" 200 OK
+INFO:     connection closed
+INFO:     127.0.0.1:49782 - "GET /api/timeline HTTP/1.1" 307 Temporary Redirect
+INFO:     127.0.0.1:49741 - "GET /api/tasks/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49737 - "GET /api/swarm/plans/active HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49783 - "GET /api/repos HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49780 - "GET /api/control-plane/reviews/recent HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49782 - "GET /api/timeline/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49786 - "WebSocket /ws/activity" [accepted]
+2026-02-21 15:11:26,281 [INFO] backend.app.websocket.manager: WebSocket connected — 5 active connection(s)
+2026-02-21 15:11:26,281 [INFO] backend.app.main: WebSocket 12974015264 accepted successfully.
+INFO:     connection open
+2026-02-21 15:11:26,282 [INFO] backend.app.main: WebSocket 12974015264 waiting to receive...
+INFO:     127.0.0.1:49780 - "GET /api/timeline/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49792 - "WebSocket /ws/activity" [accepted]
+2026-02-21 15:11:27,264 [INFO] backend.app.websocket.manager: WebSocket connected — 6 active connection(s)
+2026-02-21 15:11:27,264 [INFO] backend.app.main: WebSocket 12974016848 accepted successfully.
+INFO:     connection open
+2026-02-21 15:11:27,265 [INFO] backend.app.main: WebSocket 12974016848 waiting to receive...
+2026-02-21 15:11:41,652 [INFO] httpx: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-02-21 15:11:41,654 [INFO] backend.app.claude_client.client: Claude request: model=claude-sonnet-4-20250514 input_tokens=6589 output_tokens=1231 latency=25.64s
+2026-02-21 15:11:41,655 [INFO] backend.app.claude_client.repo_analyzer: Saved repo map to /tmp/agent_hq_repos/beac12db-e1b8-4510-a990-d91e572b745e/.agent_hq_repo_map.md
+INFO:     127.0.0.1:49915 - "GET /api/metrics/radar HTTP/1.1" 200 OK
+2026-02-21 15:12:08,231 [INFO] backend.app.orchestrator.task_manager: Created task ee1a56ac-8d74-4366-a1f4-f85924b6cdf1 (engine=claude-code)
+2026-02-21 15:12:08,232 [INFO] backend.app.orchestrator.router: Task created: ee1a56ac-8d74-4366-a1f4-f85924b6cdf1 (engine=claude-code)
+2026-02-21 15:12:08,232 [INFO] backend.app.orchestrator.router: Attempting to spawn agent for task ee1a56ac-8d74-4366-a1f4-f85924b6cdf1...
+2026-02-21 15:12:08,232 [INFO] backend.app.orchestrator.process_manager: Spawning agent for task ee1a56ac-8d74-4366-a1f4-f85924b6cdf1: claude -p Add a base.py file in the repo that contains a function to add two numbers and raise the PR. --dangerously-skip-permissions
+2026-02-21 15:12:08,232 [INFO] backend.app.orchestrator.process_manager: Cloning BuildathonAgentHQ/test into workspace /var/folders/zl/4p8qhx2j7c1c8c193jlwt8_w0000gn/T/agent_hq_workspaces/ee1a56ac-8d7
+2026-02-21 15:12:08,602 [INFO] backend.app.orchestrator.process_manager: Cloned BuildathonAgentHQ/test successfully into /var/folders/zl/4p8qhx2j7c1c8c193jlwt8_w0000gn/T/agent_hq_workspaces/ee1a56ac-8d7
+2026-02-21 15:12:08,628 [INFO] backend.app.orchestrator.process_manager: Workspace for task ee1a56ac-8d74-4366-a1f4-f85924b6cdf1: /var/folders/zl/4p8qhx2j7c1c8c193jlwt8_w0000gn/T/agent_hq_workspaces/ee1a56ac-8d7
+2026-02-21 15:12:08,634 [INFO] backend.app.websocket.manager: Broadcasting event task_lifecycle to 6 clients
+2026-02-21 15:12:08,634 [INFO] backend.app.orchestrator.process_manager: Agent spawned for task ee1a56ac-8d74-4366-a1f4-f85924b6cdf1 (pid 34854)
+2026-02-21 15:12:08,635 [INFO] backend.app.orchestrator.router: Agent spawned successfully for task ee1a56ac-8d74-4366-a1f4-f85924b6cdf1 (status=running)
+INFO:     127.0.0.1:49967 - "POST /api/tasks/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50063 - "GET /api/metrics/radar HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50065 - "GET /api/metrics/leaderboard HTTP/1.1" 200 OK
+2026-02-21 15:12:47,658 [INFO] httpx: HTTP Request: POST https://integrate.api.nvidia.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-02-21 15:12:47,659 [INFO] backend.app.websocket.manager: Broadcasting event status_update to 6 clients
+2026-02-21 15:12:48,274 [INFO] httpx: HTTP Request: POST https://integrate.api.nvidia.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-02-21 15:12:48,275 [INFO] backend.app.websocket.manager: Broadcasting event status_update to 6 clients
+2026-02-21 15:12:48,712 [INFO] backend.app.orchestrator.process_manager: Task ee1a56ac-8d74-4366-a1f4-f85924b6cdf1 exited with code 0 → success
+2026-02-21 15:12:48,712 [INFO] backend.app.websocket.manager: Broadcasting event task_lifecycle to 6 clients
+2026-02-21 15:12:48,723 [INFO] backend.app.orchestrator.process_manager: Cleaned up workspace for task ee1a56ac-8d74-4366-a1f4-f85924b6cdf1
+INFO:     127.0.0.1:50210 - "GET /api/metrics/radar HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50341 - "GET /api/metrics/radar HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50342 - "GET /api/metrics/leaderboard HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50478 - "GET /api/metrics/radar HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50603 - "GET /api/metrics/radar HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50604 - "GET /api/metrics/leaderboard HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50741 - "GET /api/metrics/radar HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50753 - "GET /api/metrics/radar HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50755 - "GET /api/metrics/leaderboard HTTP/1.1" 200 OK
+2026-02-21 15:15:56,128 [INFO] backend.app.orchestrator.task_manager: Created task 629249fb-c730-4eb1-94b0-4ce1d83b4132 (engine=claude-code)
+2026-02-21 15:15:56,128 [INFO] backend.app.orchestrator.router: Task created: 629249fb-c730-4eb1-94b0-4ce1d83b4132 (engine=claude-code)
+2026-02-21 15:15:56,128 [INFO] backend.app.orchestrator.router: Attempting to spawn agent for task 629249fb-c730-4eb1-94b0-4ce1d83b4132...
+2026-02-21 15:15:56,128 [INFO] backend.app.orchestrator.process_manager: Spawning agent for task 629249fb-c730-4eb1-94b0-4ce1d83b4132: claude -p Add cal.py in the repo which contains Hello World and raise a PR --dangerously-skip-permissions
+2026-02-21 15:15:56,128 [INFO] backend.app.orchestrator.process_manager: Cloning BuildathonAgentHQ/test into workspace /var/folders/zl/4p8qhx2j7c1c8c193jlwt8_w0000gn/T/agent_hq_workspaces/629249fb-c73
+2026-02-21 15:15:56,549 [INFO] backend.app.orchestrator.process_manager: Cloned BuildathonAgentHQ/test successfully into /var/folders/zl/4p8qhx2j7c1c8c193jlwt8_w0000gn/T/agent_hq_workspaces/629249fb-c73
+2026-02-21 15:15:56,571 [INFO] backend.app.orchestrator.process_manager: Workspace for task 629249fb-c730-4eb1-94b0-4ce1d83b4132: /var/folders/zl/4p8qhx2j7c1c8c193jlwt8_w0000gn/T/agent_hq_workspaces/629249fb-c73
+2026-02-21 15:15:56,575 [INFO] backend.app.websocket.manager: Broadcasting event task_lifecycle to 6 clients
+2026-02-21 15:15:56,576 [INFO] backend.app.orchestrator.process_manager: Agent spawned for task 629249fb-c730-4eb1-94b0-4ce1d83b4132 (pid 35302)
+2026-02-21 15:15:56,576 [INFO] backend.app.orchestrator.router: Agent spawned successfully for task 629249fb-c730-4eb1-94b0-4ce1d83b4132 (status=running)
+INFO:     127.0.0.1:50759 - "POST /api/tasks/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50762 - "GET /api/metrics/radar HTTP/1.1" 200 OK
+2026-02-21 15:16:05,968 [INFO] backend.app.websocket.manager: WebSocket disconnected — 5 active connection(s)
+INFO:     connection closed
+INFO:     127.0.0.1:50783 - "GET /api/tasks/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50785 - "GET /api/tasks/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50793 - "GET /api/tasks/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50798 - "GET /api/tasks/ HTTP/1.1" 200 OK
+2026-02-21 15:16:32,443 [INFO] httpx: HTTP Request: POST https://integrate.api.nvidia.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-02-21 15:16:32,444 [INFO] backend.app.websocket.manager: Broadcasting event status_update to 5 clients
+2026-02-21 15:16:32,940 [INFO] httpx: HTTP Request: POST https://integrate.api.nvidia.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-02-21 15:16:32,941 [INFO] backend.app.websocket.manager: Broadcasting event status_update to 5 clients
+2026-02-21 15:16:33,159 [INFO] backend.app.orchestrator.process_manager: Task 629249fb-c730-4eb1-94b0-4ce1d83b4132 exited with code 0 → success
+2026-02-21 15:16:33,160 [INFO] backend.app.websocket.manager: Broadcasting event task_lifecycle to 5 clients
+2026-02-21 15:16:33,170 [INFO] backend.app.orchestrator.process_manager: Cleaned up workspace for task 629249fb-c730-4eb1-94b0-4ce1d83b4132
+INFO:     127.0.0.1:50811 - "GET /api/metrics/radar HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50815 - "WebSocket /ws/activity" [accepted]
+2026-02-21 15:16:35,928 [INFO] backend.app.websocket.manager: WebSocket connected — 6 active connection(s)
+2026-02-21 15:16:35,928 [INFO] backend.app.main: WebSocket 12974017856 accepted successfully.
+INFO:     127.0.0.1:50817 - "GET /api/metrics/leaderboard HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50818 - "GET /api/timeline HTTP/1.1" 307 Temporary Redirect
+INFO:     connection open
+INFO:     127.0.0.1:50811 - "GET /api/swarm/plans/active HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50820 - "GET /api/tasks/ HTTP/1.1" 200 OK
+2026-02-21 15:16:35,938 [INFO] backend.app.main: WebSocket 12974017856 waiting to receive...
+INFO:     127.0.0.1:50818 - "GET /api/metrics/radar HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50817 - "GET /api/metrics/leaderboard HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50822 - "GET /api/repos HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50823 - "GET /api/control-plane/reviews/recent HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50820 - "GET /api/timeline HTTP/1.1" 307 Temporary Redirect
+INFO:     127.0.0.1:50811 - "GET /api/timeline/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50822 - "GET /api/tasks/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50817 - "GET /api/swarm/plans/active HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50818 - "GET /api/repos HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50823 - "GET /api/control-plane/reviews/recent HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50823 - "GET /api/timeline/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50825 - "WebSocket /ws/activity" [accepted]
+2026-02-21 15:16:36,924 [INFO] backend.app.websocket.manager: WebSocket connected — 7 active connection(s)
+2026-02-21 15:16:36,924 [INFO] backend.app.main: WebSocket 12974016992 accepted successfully.
+INFO:     connection open
+2026-02-21 15:16:36,924 [INFO] backend.app.main: WebSocket 12974016992 waiting to receive...
+INFO:     127.0.0.1:50832 - "GET /api/metrics/radar HTTP/1.1" 200 OK
+2026-02-21 15:17:22,372 [INFO] backend.app.orchestrator.task_manager: Created task cb33e632-14ab-4dd5-a020-a74899262126 (engine=claude-code)
+2026-02-21 15:17:22,372 [INFO] backend.app.orchestrator.router: Task created: cb33e632-14ab-4dd5-a020-a74899262126 (engine=claude-code)
+2026-02-21 15:17:22,372 [INFO] backend.app.orchestrator.router: Attempting to spawn agent for task cb33e632-14ab-4dd5-a020-a74899262126...
+2026-02-21 15:17:22,372 [INFO] backend.app.orchestrator.process_manager: Spawning agent for task cb33e632-14ab-4dd5-a020-a74899262126: claude -p Add hello.py --dangerously-skip-permissions
+2026-02-21 15:17:22,372 [INFO] backend.app.orchestrator.process_manager: Cloning BuildathonAgentHQ/test into workspace /var/folders/zl/4p8qhx2j7c1c8c193jlwt8_w0000gn/T/agent_hq_workspaces/cb33e632-14a
+2026-02-21 15:17:22,796 [INFO] backend.app.orchestrator.process_manager: Cloned BuildathonAgentHQ/test successfully into /var/folders/zl/4p8qhx2j7c1c8c193jlwt8_w0000gn/T/agent_hq_workspaces/cb33e632-14a
+2026-02-21 15:17:22,820 [INFO] backend.app.orchestrator.process_manager: Workspace for task cb33e632-14ab-4dd5-a020-a74899262126: /var/folders/zl/4p8qhx2j7c1c8c193jlwt8_w0000gn/T/agent_hq_workspaces/cb33e632-14a
+2026-02-21 15:17:22,824 [INFO] backend.app.websocket.manager: Broadcasting event task_lifecycle to 7 clients
+2026-02-21 15:17:22,825 [INFO] backend.app.orchestrator.process_manager: Agent spawned for task cb33e632-14ab-4dd5-a020-a74899262126 (pid 35709)
+2026-02-21 15:17:22,825 [INFO] backend.app.orchestrator.router: Agent spawned successfully for task cb33e632-14ab-4dd5-a020-a74899262126 (status=running)
+INFO:     127.0.0.1:50836 - "POST /api/tasks/ HTTP/1.1" 200 OK
+2026-02-21 15:17:32,347 [INFO] httpx: HTTP Request: POST https://integrate.api.nvidia.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-02-21 15:17:32,350 [INFO] backend.app.websocket.manager: Broadcasting event status_update to 7 clients
+2026-02-21 15:17:33,080 [INFO] httpx: HTTP Request: POST https://integrate.api.nvidia.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-02-21 15:17:33,081 [INFO] backend.app.websocket.manager: Broadcasting event status_update to 7 clients
+2026-02-21 15:17:33,353 [INFO] backend.app.orchestrator.process_manager: Task cb33e632-14ab-4dd5-a020-a74899262126 exited with code 0 → success
+2026-02-21 15:17:33,353 [INFO] backend.app.websocket.manager: Broadcasting event task_lifecycle to 7 clients
+2026-02-21 15:17:33,363 [INFO] backend.app.orchestrator.process_manager: Cleaned up workspace for task cb33e632-14ab-4dd5-a020-a74899262126
+INFO:     127.0.0.1:50862 - "GET /api/metrics/radar HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50863 - "GET /api/metrics/leaderboard HTTP/1.1" 200 OK
+2026-02-21 15:18:00,784 [INFO] backend.app.websocket.manager: WebSocket disconnected — 6 active connection(s)
+INFO:     connection closed
+2026-02-21 15:18:01,195 [INFO] httpx: HTTP Request: GET https://api.github.com/repos/BuildathonAgentHQ/test/pulls?state=open "HTTP/1.1 200 OK"
+2026-02-21 15:18:01,461 [INFO] httpx: HTTP Request: GET https://api.github.com/repos/BuildathonAgentHQ/test/pulls/9/files "HTTP/1.1 200 OK"
+2026-02-21 15:18:01,711 [INFO] httpx: HTTP Request: GET https://api.github.com/repos/BuildathonAgentHQ/test/commits?per_page=100 "HTTP/1.1 200 OK"
+2026-02-21 15:18:01,976 [INFO] httpx: HTTP Request: GET https://api.github.com/repos/BuildathonAgentHQ/test/pulls/8/files "HTTP/1.1 200 OK"
+2026-02-21 15:18:02,302 [INFO] httpx: HTTP Request: GET https://api.github.com/repos/BuildathonAgentHQ/test/pulls/7/files "HTTP/1.1 200 OK"
+2026-02-21 15:18:02,616 [INFO] httpx: HTTP Request: GET https://api.github.com/repos/BuildathonAgentHQ/test/pulls/6/files "HTTP/1.1 200 OK"
+2026-02-21 15:18:02,921 [INFO] httpx: HTTP Request: GET https://api.github.com/repos/BuildathonAgentHQ/test/pulls/5/files "HTTP/1.1 200 OK"
+2026-02-21 15:18:03,275 [INFO] httpx: HTTP Request: GET https://api.github.com/repos/BuildathonAgentHQ/test/pulls/4/files "HTTP/1.1 200 OK"
+2026-02-21 15:18:03,522 [INFO] httpx: HTTP Request: GET https://api.github.com/repos/BuildathonAgentHQ/test/pulls/3/files "HTTP/1.1 200 OK"
+INFO:     127.0.0.1:50879 - "GET /api/control-plane/prs HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50879 - "GET /api/control-plane/prs HTTP/1.1" 200 OK
+2026-02-21 15:18:13,443 [INFO] backend.app.websocket.manager: WebSocket disconnected — 5 active connection(s)
+2026-02-21 15:18:13,444 [INFO] backend.app.websocket.manager: WebSocket disconnected — 4 active connection(s)
+INFO:     connection closed
+2026-02-21 15:18:13,444 [INFO] backend.app.websocket.manager: WebSocket disconnected — 3 active connection(s)
+INFO:     connection closed
+INFO:     connection closed
+2026-02-21 15:18:13,444 [INFO] backend.app.websocket.manager: WebSocket disconnected — 2 active connection(s)
+INFO:     connection closed
+2026-02-21 15:18:13,445 [INFO] backend.app.websocket.manager: WebSocket disconnected — 1 active connection(s)
+INFO:     connection closed
+2026-02-21 15:18:13,445 [INFO] backend.app.websocket.manager: WebSocket disconnected — 0 active connection(s)
+INFO:     connection closed
+INFO:     127.0.0.1:50896 - "WebSocket /ws/activity" [accepted]
+2026-02-21 15:18:14,146 [INFO] backend.app.websocket.manager: WebSocket connected — 1 active connection(s)
+2026-02-21 15:18:14,146 [INFO] backend.app.main: WebSocket 12973440128 accepted successfully.
+INFO:     connection open
+2026-02-21 15:18:14,147 [INFO] backend.app.main: WebSocket 12973440128 waiting to receive...
+2026-02-21 15:18:14,149 [INFO] backend.app.websocket.manager: WebSocket disconnected — 0 active connection(s)
+INFO:     connection closed
+INFO:     127.0.0.1:50900 - "WebSocket /ws/activity" [accepted]
+2026-02-21 15:18:14,160 [INFO] backend.app.websocket.manager: WebSocket connected — 1 active connection(s)
+2026-02-21 15:18:14,160 [INFO] backend.app.main: WebSocket 12973439552 accepted successfully.
+INFO:     connection open
+2026-02-21 15:18:14,161 [INFO] backend.app.main: WebSocket 12973439552 waiting to receive...
+2026-02-21 15:18:14,526 [INFO] backend.app.websocket.manager: WebSocket disconnected — 0 active connection(s)
+INFO:     connection closed
+INFO:     127.0.0.1:50890 - "GET /api/control-plane/prs HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50903 - "WebSocket /ws/activity" [accepted]
+2026-02-21 15:18:14,877 [INFO] backend.app.websocket.manager: WebSocket connected — 1 active connection(s)
+2026-02-21 15:18:14,877 [INFO] backend.app.main: WebSocket 12973439552 accepted successfully.
+INFO:     127.0.0.1:50890 - "GET /api/control-plane/prs HTTP/1.1" 200 OK
+INFO:     connection open
+2026-02-21 15:18:14,884 [INFO] backend.app.websocket.manager: WebSocket disconnected — 0 active connection(s)
+2026-02-21 15:18:14,884 [INFO] backend.app.main: WebSocket 12973439552 waiting to receive...
+2026-02-21 15:18:14,884 [ERROR] backend.app.main: WebSocket error
+Traceback (most recent call last):
+  File "/Users/notsofit/Documents/Hackathon/agent-hq/backend/app/main.py", line 237, in websocket_activity
+    data: dict[str, Any] = await websocket.receive_json()
+                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/anaconda3/lib/python3.13/site-packages/starlette/websockets.py", line 134, in receive_json
+    raise RuntimeError('WebSocket is not connected. Need to call "accept" first.')
+RuntimeError: WebSocket is not connected. Need to call "accept" first.
+2026-02-21 15:18:14,887 [INFO] backend.app.websocket.manager: WebSocket disconnected — 0 active connection(s)
+INFO:     connection closed
+INFO:     127.0.0.1:50908 - "WebSocket /ws/activity" [accepted]
+2026-02-21 15:18:14,890 [INFO] backend.app.websocket.manager: WebSocket connected — 1 active connection(s)
+2026-02-21 15:18:14,890 [INFO] backend.app.main: WebSocket 12973440848 accepted successfully.
+INFO:     connection open
+2026-02-21 15:18:14,891 [INFO] backend.app.main: WebSocket 12973440848 waiting to receive...
+INFO:     127.0.0.1:50910 - "WebSocket /ws/activity" [accepted]
+2026-02-21 15:18:15,883 [INFO] backend.app.websocket.manager: WebSocket connected — 2 active connection(s)
+2026-02-21 15:18:15,883 [INFO] backend.app.main: WebSocket 12974017856 accepted successfully.
+INFO:     connection open
+2026-02-21 15:18:15,884 [INFO] backend.app.main: WebSocket 12974017856 waiting to receive...
+2026-02-21 15:18:17,558 [INFO] backend.app.orchestrator.task_manager: Created task fe0f5596-0b81-4550-8898-138a9bff9f50 (engine=claude-code)
+2026-02-21 15:18:17,559 [INFO] backend.app.orchestrator.router: Task created: fe0f5596-0b81-4550-8898-138a9bff9f50 (engine=claude-code)
+2026-02-21 15:18:17,559 [INFO] backend.app.orchestrator.router: Attempting to spawn agent for task fe0f5596-0b81-4550-8898-138a9bff9f50...
+2026-02-21 15:18:17,559 [INFO] backend.app.orchestrator.process_manager: Spawning agent for task fe0f5596-0b81-4550-8898-138a9bff9f50: claude -p Write unit tests for untested files in PR #9. --dangerously-skip-permissions
+2026-02-21 15:18:17,559 [INFO] backend.app.orchestrator.process_manager: Cloning BuildathonAgentHQ/test into workspace /var/folders/zl/4p8qhx2j7c1c8c193jlwt8_w0000gn/T/agent_hq_workspaces/fe0f5596-0b8
+2026-02-21 15:18:18,008 [INFO] backend.app.orchestrator.process_manager: Cloned BuildathonAgentHQ/test successfully into /var/folders/zl/4p8qhx2j7c1c8c193jlwt8_w0000gn/T/agent_hq_workspaces/fe0f5596-0b8
+2026-02-21 15:18:18,033 [INFO] backend.app.orchestrator.process_manager: Workspace for task fe0f5596-0b81-4550-8898-138a9bff9f50: /var/folders/zl/4p8qhx2j7c1c8c193jlwt8_w0000gn/T/agent_hq_workspaces/fe0f5596-0b8
+2026-02-21 15:18:18,038 [INFO] backend.app.websocket.manager: Broadcasting event task_lifecycle to 2 clients
+2026-02-21 15:18:18,038 [INFO] backend.app.orchestrator.process_manager: Agent spawned for task fe0f5596-0b81-4550-8898-138a9bff9f50 (pid 35821)
+2026-02-21 15:18:18,038 [INFO] backend.app.orchestrator.router: Agent spawned successfully for task fe0f5596-0b81-4550-8898-138a9bff9f50 (status=running)
+INFO:     127.0.0.1:50890 - "POST /api/tasks/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50906 - "GET /api/tasks/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50932 - "GET /api/tasks/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50932 - "GET /api/metrics/radar HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50906 - "GET /api/metrics/leaderboard HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50932 - "GET /api/swarm/plans/active HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50937 - "GET /api/timeline HTTP/1.1" 307 Temporary Redirect
+INFO:     127.0.0.1:50906 - "GET /api/metrics/radar HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50932 - "GET /api/metrics/leaderboard HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50938 - "GET /api/tasks/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50937 - "GET /api/swarm/plans/active HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50940 - "GET /api/repos HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50942 - "GET /api/control-plane/reviews/recent HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50944 - "WebSocket /ws/activity" [accepted]
+2026-02-21 15:18:28,837 [INFO] backend.app.websocket.manager: WebSocket connected — 3 active connection(s)
+2026-02-21 15:18:28,838 [INFO] backend.app.main: WebSocket 12974018288 accepted successfully.
+INFO:     127.0.0.1:50938 - "GET /api/timeline HTTP/1.1" 307 Temporary Redirect
+INFO:     127.0.0.1:50932 - "GET /api/tasks/ HTTP/1.1" 200 OK
+INFO:     connection open
+INFO:     127.0.0.1:50906 - "GET /api/repos HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50937 - "GET /api/control-plane/reviews/recent HTTP/1.1" 200 OK
+2026-02-21 15:18:28,845 [INFO] backend.app.main: WebSocket 12974018288 waiting to receive...
+INFO:     127.0.0.1:50937 - "GET /api/timeline/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50906 - "GET /api/timeline/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50946 - "WebSocket /ws/activity" [accepted]
+2026-02-21 15:18:29,817 [INFO] backend.app.websocket.manager: WebSocket connected — 4 active connection(s)
+2026-02-21 15:18:29,817 [INFO] backend.app.main: WebSocket 6165562576 accepted successfully.
+INFO:     connection open
+2026-02-21 15:18:29,817 [INFO] backend.app.main: WebSocket 6165562576 waiting to receive...
+2026-02-21 15:18:52,161 [INFO] backend.app.websocket.manager: WebSocket disconnected — 3 active connection(s)
+INFO:     connection closed
+INFO:     127.0.0.1:50964 - "GET /api/control-plane/prs HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50966 - "GET /api/control-plane/prs HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50966 - "OPTIONS /api/swarm/plan HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50966 - "POST /api/swarm/plan HTTP/1.1" 422 Unprocessable Content
+2026-02-21 15:19:43,600 [INFO] httpx: HTTP Request: POST https://integrate.api.nvidia.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-02-21 15:19:43,601 [INFO] backend.app.websocket.manager: Broadcasting event status_update to 3 clients
+2026-02-21 15:19:44,332 [INFO] httpx: HTTP Request: POST https://integrate.api.nvidia.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-02-21 15:19:44,334 [INFO] backend.app.websocket.manager: Broadcasting event status_update to 3 clients
+2026-02-21 15:19:44,713 [INFO] backend.app.orchestrator.process_manager: Task fe0f5596-0b81-4550-8898-138a9bff9f50 exited with code 0 → success
+2026-02-21 15:19:44,713 [INFO] backend.app.websocket.manager: Broadcasting event task_lifecycle to 3 clients
+2026-02-21 15:19:44,725 [INFO] backend.app.orchestrator.process_manager: Cleaned up workspace for task fe0f5596-0b81-4550-8898-138a9bff9f50
+INFO:     127.0.0.1:51026 - "GET /api/metrics/radar HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51030 - "GET /api/metrics/leaderboard HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51026 - "GET /api/swarm/plans/active HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51031 - "GET /api/timeline HTTP/1.1" 307 Temporary Redirect
+INFO:     127.0.0.1:51033 - "GET /api/tasks/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51035 - "GET /api/repos HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51036 - "GET /api/control-plane/reviews/recent HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51038 - "WebSocket /ws/activity" [accepted]
+2026-02-21 15:19:56,360 [INFO] backend.app.websocket.manager: WebSocket connected — 4 active connection(s)
+2026-02-21 15:19:56,360 [INFO] backend.app.main: WebSocket 12974028080 accepted successfully.
+INFO:     127.0.0.1:51030 - "GET /api/metrics/radar HTTP/1.1" 200 OK
+INFO:     connection open
+2026-02-21 15:19:56,362 [INFO] backend.app.main: WebSocket 12974028080 waiting to receive...
+INFO:     127.0.0.1:51031 - "GET /api/metrics/leaderboard HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51026 - "GET /api/timeline HTTP/1.1" 307 Temporary Redirect
+INFO:     127.0.0.1:51033 - "GET /api/swarm/plans/active HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51035 - "GET /api/tasks/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51036 - "GET /api/repos HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51030 - "GET /api/control-plane/reviews/recent HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51026 - "GET /api/timeline/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51026 - "GET /api/timeline/ HTTP/1.1" 200 OK
+2026-02-21 15:19:57,196 [INFO] backend.app.websocket.manager: WebSocket disconnected — 3 active connection(s)
+INFO:     connection closed
+INFO:     127.0.0.1:51026 - "GET /api/repos HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51035 - "GET /api/repos HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51035 - "GET /api/metrics/radar HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51026 - "GET /api/metrics/leaderboard HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51033 - "GET /api/timeline HTTP/1.1" 307 Temporary Redirect
+INFO:     127.0.0.1:51036 - "GET /api/tasks/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51030 - "GET /api/repos HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51031 - "GET /api/control-plane/reviews/recent HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51035 - "GET /api/swarm/plans/active HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51042 - "WebSocket /ws/activity" [accepted]
+2026-02-21 15:19:58,037 [INFO] backend.app.websocket.manager: WebSocket connected — 4 active connection(s)
+2026-02-21 15:19:58,037 [INFO] backend.app.main: WebSocket 12974026928 accepted successfully.
+INFO:     127.0.0.1:51033 - "GET /api/metrics/radar HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51036 - "GET /api/tasks/ HTTP/1.1" 200 OK
+INFO:     connection open
+INFO:     127.0.0.1:51031 - "GET /api/timeline HTTP/1.1" 307 Temporary Redirect
+INFO:     127.0.0.1:51030 - "GET /api/control-plane/reviews/recent HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51026 - "GET /api/repos HTTP/1.1" 200 OK
+2026-02-21 15:19:58,040 [INFO] backend.app.main: WebSocket 12974026928 waiting to receive...
+INFO:     127.0.0.1:51035 - "GET /api/metrics/leaderboard HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51036 - "GET /api/swarm/plans/active HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51026 - "GET /api/timeline/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51026 - "GET /api/timeline/ HTTP/1.1" 200 OK
+2026-02-21 15:19:58,775 [INFO] backend.app.websocket.manager: WebSocket disconnected — 3 active connection(s)
+INFO:     connection closed
+INFO:     127.0.0.1:51026 - "GET /api/tasks/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51036 - "GET /api/tasks/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51036 - "GET /api/control-plane/prs HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51026 - "GET /api/control-plane/prs HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51026 - "GET /api/repos HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51036 - "GET /api/repos HTTP/1.1" 200 OK

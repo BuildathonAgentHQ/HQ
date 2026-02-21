@@ -5,6 +5,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
 import {
+<<<<<<< HEAD
   LayoutDashboard,
   Terminal,
   GitPullRequest,
@@ -14,6 +15,17 @@ import {
   Github,
   ExternalLink,
   Settings,
+=======
+    LayoutDashboard,
+    Terminal,
+    GitPullRequest,
+    GitFork,
+    Shield,
+    HeartPulse,
+    DollarSign,
+    Zap,
+    Settings,
+>>>>>>> c29f998 (Latest Update)
 } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { KnowledgeSidebar } from "@/components/knowledge-sidebar";
@@ -22,12 +34,22 @@ import { useWebSocket } from "@/hooks/use-websocket";
 import { WS_URL, API_BASE_URL } from "@/lib/constants";
 
 const NAV_ITEMS = [
+<<<<<<< HEAD
   { label: "Dashboard", href: "/", icon: LayoutDashboard },
   { label: "Agent Console", href: "/console", icon: Terminal },
   { label: "PR Radar", href: "/pr-radar", icon: GitPullRequest },
   { label: "Coverage Map", href: "/coverage", icon: Shield },
   { label: "Repo Health", href: "/repo-health", icon: HeartPulse },
   { label: "FinOps", href: "/finops", icon: DollarSign },
+=======
+    { label: "Repositories", href: "/repos", icon: GitFork },
+    { label: "Dashboard", href: "/", icon: LayoutDashboard },
+    { label: "Agent Console", href: "/console", icon: Terminal },
+    { label: "PR Reviews", href: "/pr-radar", icon: GitPullRequest },
+    { label: "Coverage Map", href: "/coverage", icon: Shield },
+    { label: "Repo Health", href: "/repo-health", icon: HeartPulse },
+    { label: "FinOps", href: "/finops", icon: DollarSign },
+>>>>>>> c29f998 (Latest Update)
 ] as const;
 
 interface RepoConfig {

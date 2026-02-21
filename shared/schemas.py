@@ -190,6 +190,15 @@ class WebSocketEvent(BaseModel):
         "debate",
         "guardrail",
         "task_lifecycle",
+        "repo_added",
+        "repo_analyzed",
+        "pr_reviewed",
+        "swarm_started",
+        "swarm_agent_started",
+        "swarm_agent_completed",
+        "swarm_completed",
+        "fix_proposed",
+        "fix_applied",
     ] = Field(..., description="Discriminator for frontend event routing.")
     payload: dict[str, Any] = Field(
         default_factory=dict,
@@ -598,3 +607,286 @@ class DebateResult(BaseModel):
     options: list[DebateOption] = Field(
         ..., description="Actionable options for the user to choose from."
     )
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+#  16. Repository — A connected GitHub repository
+# ═══════════════════════════════════════════════════════════════════════════════
+
+
+class Repository(BaseModel):
+    """A GitHub repository connected to Agent HQ for analysis and monitoring.
+
+    **Produced by:** ``backend/app/api/repos.py`` on connection.
+    **Consumed by:** Swarm agents, control plane, frontend repo list.
+    """
+
+    id: str = Field(
+        default_factory=lambda: str(uuid.uuid4()),
+        description="Unique identifier (UUID v4).",
+    )
+    owner: str = Field(..., description="GitHub owner (user or org).")
+    name: str = Field(..., description="Repository name.")
+    full_name: str = Field(..., description="owner/name format.")
+    url: str = Field(..., description="GitHub URL.")
+    default_branch: str = Field("main", description="Default branch name.")
+    added_at: datetime = Field(
+        default_factory=lambda: datetime.now(timezone.utc),
+        description="When this repo was connected to Agent HQ.",
+    )
+    last_analyzed: Optional[datetime] = Field(
+        None, description="Timestamp of the most recent Claude analysis."
+    )
+    analysis_summary: Optional[str] = Field(
+        None, description="Plain-English summary from Claude's analysis."
+    )
+    tech_stack: list[str] = Field(
+        default_factory=list, description="Detected technologies."
+    )
+    health_score: Optional[int] = Field(
+        None, ge=0, le=100, description="Overall repo health score (0-100)."
+    )
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+#  17. CodeIssue — A single issue found by Claude analysis
+# ═══════════════════════════════════════════════════════════════════════════════
+
+
+class CodeIssue(BaseModel):
+    """A code issue discovered by Claude during repo or PR analysis.
+
+    **Produced by:** Swarm reviewer/security_auditor agents.
+    **Consumed by:** Fix generator agent, frontend issue list.
+    """
+
+    id: str = Field(
+        default_factory=lambda: str(uuid.uuid4()),
+        description="Unique identifier (UUID v4).",
+    )
+    repo_id: str = Field(..., description="ID of the repository this belongs to.")
+    pr_number: Optional[int] = Field(
+        None,
+        description="GitHub PR number (null for repo-level issues).",
+    )
+    file_path: str = Field(..., description="Path to the affected file.")
+    line_number: Optional[int] = Field(
+        None, description="Specific line number, if applicable."
+    )
+    issue_type: Literal[
+        "bug",
+        "security",
+        "performance",
+        "error_handling",
+        "testing",
+        "style",
+        "breaking",
+        "refactor",
+    ] = Field(..., description="Category of the issue.")
+    severity: Literal["critical", "high", "medium", "low"] = Field(
+        ..., description="How severe this issue is."
+    )
+    description: str = Field(
+        ..., description="Plain-English description of the issue."
+    )
+    suggestion: str = Field(..., description="How to fix the issue.")
+    status: Literal["open", "fixing", "fixed", "dismissed"] = Field(
+        "open", description="Current lifecycle state of the issue."
+    )
+    assigned_agent: Optional[str] = Field(
+        None, description="Which swarm agent is working on this issue."
+    )
+    fix_pr_url: Optional[str] = Field(
+        None, description="Link to the PR containing the fix."
+    )
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+#  18. FixProposal — A proposed code fix from a swarm agent
+# ═══════════════════════════════════════════════════════════════════════════════
+
+
+class FixProposal(BaseModel):
+    """A concrete code fix proposed by a swarm agent.
+
+    **Produced by:** Fix generator / refactor agents.
+    **Consumed by:** Approval gate → auto-apply or human review.
+    """
+
+    id: str = Field(
+        default_factory=lambda: str(uuid.uuid4()),
+        description="Unique identifier (UUID v4).",
+    )
+    issue_id: str = Field(
+        ..., description="ID of the CodeIssue this fix addresses."
+    )
+    repo_id: str = Field(..., description="ID of the repository.")
+    agent_type: str = Field(
+        ..., description="Which swarm agent generated this fix."
+    )
+    file_path: str = Field(..., description="Path to the file being modified.")
+    original_code: str = Field(
+        ..., description="Exact code segment to replace."
+    )
+    fixed_code: str = Field(
+        ..., description="Corrected code segment."
+    )
+    explanation: str = Field(
+        ..., description="Plain-English explanation of the fix."
+    )
+    test_code: Optional[str] = Field(
+        None, description="Test code to verify the fix, if applicable."
+    )
+    status: Literal["proposed", "approved", "applied", "rejected"] = Field(
+        "proposed", description="Current lifecycle state of the proposal."
+    )
+    created_at: datetime = Field(
+        default_factory=lambda: datetime.now(timezone.utc),
+        description="When this fix was proposed.",
+    )
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+#  19. SwarmTask — A unit of work for the agent swarm
+# ═══════════════════════════════════════════════════════════════════════════════
+
+
+class SwarmTask(BaseModel):
+    """A single task assigned to one swarm agent.
+
+    **Produced by:** Swarm coordinator agent.
+    **Consumed by:** Individual specialist agents.
+    """
+
+    id: str = Field(
+        default_factory=lambda: str(uuid.uuid4()),
+        description="Unique identifier (UUID v4).",
+    )
+    repo_id: str = Field(..., description="ID of the repository.")
+    pr_number: Optional[int] = Field(
+        None, description="GitHub PR number (null for repo-level tasks)."
+    )
+    agent_type: Literal[
+        "coordinator",
+        "reviewer",
+        "test_writer",
+        "refactor",
+        "security_auditor",
+        "doc_writer",
+        "fix_generator",
+    ] = Field(..., description="Which specialist agent handles this task.")
+    task_description: str = Field(
+        ..., description="What this agent should do."
+    )
+    target_files: list[str] = Field(
+        default_factory=list, description="Files to work on."
+    )
+    depends_on: list[str] = Field(
+        default_factory=list,
+        description="List of SwarmTask IDs this depends on.",
+    )
+    status: Literal["pending", "running", "success", "failed"] = Field(
+        "pending", description="Current execution state."
+    )
+    result: Optional[dict] = Field(
+        None, description="The agent's JSON response."
+    )
+    tokens_used: int = Field(0, ge=0, description="Tokens consumed.")
+    cost: float = Field(0.0, ge=0, description="Estimated USD cost.")
+    started_at: Optional[datetime] = Field(
+        None, description="When execution began."
+    )
+    completed_at: Optional[datetime] = Field(
+        None, description="When execution finished."
+    )
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+#  20. SwarmPlan — Execution plan for a swarm operation
+# ═══════════════════════════════════════════════════════════════════════════════
+
+
+class SwarmPlan(BaseModel):
+    """A coordinated execution plan for multiple swarm agents.
+
+    **Produced by:** Swarm coordinator agent.
+    **Consumed by:** Swarm executor, frontend plan view.
+    """
+
+    id: str = Field(
+        default_factory=lambda: str(uuid.uuid4()),
+        description="Unique identifier (UUID v4).",
+    )
+    repo_id: str = Field(..., description="ID of the repository.")
+    pr_number: Optional[int] = Field(
+        None, description="GitHub PR number (null for repo-level plans)."
+    )
+    trigger: Literal["pr_review", "repo_audit", "fix_issues", "manual"] = Field(
+        ..., description="What triggered this swarm operation."
+    )
+    plan_summary: str = Field(
+        ..., description="Brief description of the overall strategy."
+    )
+    tasks: list[SwarmTask] = Field(
+        default_factory=list, description="Ordered list of agent tasks."
+    )
+    status: Literal["planning", "executing", "completed", "failed"] = Field(
+        "planning", description="Current plan lifecycle state."
+    )
+    total_issues_found: int = Field(0, ge=0)
+    total_fixes_proposed: int = Field(0, ge=0)
+    total_fixes_applied: int = Field(0, ge=0)
+    created_at: datetime = Field(
+        default_factory=lambda: datetime.now(timezone.utc),
+        description="When this plan was created.",
+    )
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+#  21. PRReview — Enhanced PR review from Claude
+# ═══════════════════════════════════════════════════════════════════════════════
+
+
+class PRReview(BaseModel):
+    """Comprehensive PR review powered by Claude, replacing heuristic-only
+    risk scoring with deep code understanding.
+
+    **Produced by:** PR reviewer swarm agent.
+    **Consumed by:** Frontend PR review view, approval flow.
+    """
+
+    id: str = Field(
+        default_factory=lambda: str(uuid.uuid4()),
+        description="Unique identifier (UUID v4).",
+    )
+    repo_id: str = Field(..., description="ID of the repository.")
+    pr_number: int = Field(..., ge=1, description="GitHub PR number.")
+    pr_title: str = Field(..., description="Title of the pull request.")
+    pr_author: str = Field(..., description="Author's GitHub username.")
+    summary: str = Field(
+        ..., description="Claude's summary of what the PR does."
+    )
+    risk_level: Literal["low", "medium", "high", "critical"] = Field(
+        ..., description="Overall risk classification."
+    )
+    verdict: Literal["approve", "request_changes", "needs_discussion"] = Field(
+        ..., description="Review verdict."
+    )
+    issues: list[CodeIssue] = Field(
+        default_factory=list, description="Issues found in this PR."
+    )
+    missing_tests: list[dict] = Field(
+        default_factory=list,
+        description="Files/areas that need test coverage (file + description).",
+    )
+    praise: list[str] = Field(
+        default_factory=list, description="Things done well in this PR."
+    )
+    fix_plan: Optional[SwarmPlan] = Field(
+        None, description="Auto-generated plan to fix all issues found."
+    )
+    reviewed_at: datetime = Field(
+        default_factory=lambda: datetime.now(timezone.utc),
+        description="When the review was completed.",
+    )
+

@@ -94,7 +94,16 @@ export interface WebSocketEvent {
     | "budget_exceeded"
     | "debate"
     | "guardrail"
-    | "task_lifecycle";
+    | "task_lifecycle"
+    | "repo_added"
+    | "repo_analyzed"
+    | "pr_reviewed"
+    | "swarm_started"
+    | "swarm_agent_started"
+    | "swarm_agent_completed"
+    | "swarm_completed"
+    | "fix_proposed"
+    | "fix_applied";
     payload: Record<string, unknown>;
     timestamp: string; // ISO-8601
 }
@@ -280,4 +289,138 @@ export interface DebateResult {
     agent_b_position: string;
     summary: string; // plain English from Nemotron
     options: DebateOption[];
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+//  16. Repository — A connected GitHub repository
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/** A GitHub repository connected to Agent HQ for analysis and monitoring. */
+export interface Repository {
+    id: string; // UUID v4
+    owner: string;
+    name: string;
+    full_name: string; // owner/name
+    url: string;
+    default_branch: string; // default "main"
+    added_at: string; // ISO-8601
+    last_analyzed: string | null;
+    analysis_summary: string | null;
+    tech_stack: string[];
+    health_score: number | null; // 0-100
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+//  17. CodeIssue — A single issue found by Claude analysis
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/** A code issue discovered by Claude during repo or PR analysis. */
+export interface CodeIssue {
+    id: string; // UUID v4
+    repo_id: string;
+    pr_number: number | null;
+    file_path: string;
+    line_number: number | null;
+    issue_type:
+    | "bug"
+    | "security"
+    | "performance"
+    | "error_handling"
+    | "testing"
+    | "style"
+    | "breaking"
+    | "refactor";
+    severity: "critical" | "high" | "medium" | "low";
+    description: string;
+    suggestion: string;
+    status: "open" | "fixing" | "fixed" | "dismissed";
+    assigned_agent: string | null;
+    fix_pr_url: string | null;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+//  18. FixProposal — A proposed code fix from a swarm agent
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/** A concrete code fix proposed by a swarm agent. */
+export interface FixProposal {
+    id: string; // UUID v4
+    issue_id: string;
+    repo_id: string;
+    agent_type: string;
+    file_path: string;
+    original_code: string;
+    fixed_code: string;
+    explanation: string;
+    test_code: string | null;
+    status: "proposed" | "approved" | "applied" | "rejected";
+    created_at: string; // ISO-8601
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+//  19. SwarmTask — A unit of work for the agent swarm
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/** A single task assigned to one swarm agent. */
+export interface SwarmTask {
+    id: string; // UUID v4
+    repo_id: string;
+    pr_number: number | null;
+    agent_type:
+    | "coordinator"
+    | "reviewer"
+    | "test_writer"
+    | "refactor"
+    | "security_auditor"
+    | "doc_writer"
+    | "fix_generator";
+    task_description: string;
+    target_files: string[];
+    depends_on: string[]; // SwarmTask IDs
+    status: "pending" | "running" | "success" | "failed";
+    result: Record<string, unknown> | null;
+    tokens_used: number;
+    cost: number;
+    started_at: string | null; // ISO-8601
+    completed_at: string | null; // ISO-8601
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+//  20. SwarmPlan — Execution plan for a swarm operation
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/** A coordinated execution plan for multiple swarm agents. */
+export interface SwarmPlan {
+    id: string; // UUID v4
+    repo_id: string;
+    pr_number: number | null;
+    trigger: "pr_review" | "repo_audit" | "fix_issues" | "manual";
+    plan_summary: string;
+    tasks: SwarmTask[];
+    status: "planning" | "executing" | "completed" | "failed";
+    total_issues_found: number;
+    total_fixes_proposed: number;
+    total_fixes_applied: number;
+    created_at: string; // ISO-8601
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+//  21. PRReview — Enhanced PR review from Claude
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/** Comprehensive PR review powered by Claude. */
+export interface PRReview {
+    id: string; // UUID v4
+    repo_id: string;
+    pr_number: number;
+    pr_title: string;
+    pr_author: string;
+    summary: string;
+    risk_level: "low" | "medium" | "high" | "critical";
+    verdict: "approve" | "request_changes" | "needs_discussion";
+    issues: CodeIssue[];
+    missing_tests: Array<{ file: string; description: string }>;
+    praise: string[];
+    fix_plan: SwarmPlan | null;
+    reviewed_at: string; // ISO-8601
 }

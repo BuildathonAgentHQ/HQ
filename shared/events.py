@@ -39,6 +39,17 @@ class EventType(str, Enum):
     GUARDRAIL_TRIGGERED = "guardrail"
     TASK_LIFECYCLE = "task_lifecycle"
 
+    # Swarm / Claude API events
+    REPO_ADDED = "repo_added"
+    REPO_ANALYZED = "repo_analyzed"
+    PR_REVIEWED = "pr_reviewed"
+    SWARM_STARTED = "swarm_started"
+    SWARM_AGENT_STARTED = "swarm_agent_started"
+    SWARM_AGENT_COMPLETED = "swarm_agent_completed"
+    SWARM_COMPLETED = "swarm_completed"
+    FIX_PROPOSED = "fix_proposed"
+    FIX_APPLIED = "fix_applied"
+
 
 # ─── Helper ─────────────────────────────────────────────────────────────────
 

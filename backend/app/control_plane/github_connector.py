@@ -183,3 +183,132 @@ class GitHubConnector:
                 "number": 999, "title": title, "body": body,
                 "html_url": f"https://github.com/{self.owner_repo}/pull/999", "state": "open"
             }
+
+    # ── New methods for swarm agents ─────────────────────────────────────
+
+    async def create_branch(
+        self, repo: str, branch_name: str, from_branch: str = "main"
+    ) -> dict[str, Any]:
+        """Create a new branch from an existing branch.
+
+        Steps:
+            1. Get the SHA of the source branch.
+            2. Create a new ref pointing to the same SHA.
+        """
+        if not self.use_github:
+            return {"ref": f"refs/heads/{branch_name}", "sha": "mock_sha"}
+        try:
+            # Get source branch SHA
+            ref_data = await self._request(
+                "GET", f"/repos/{repo}/git/ref/heads/{from_branch}"
+            )
+            sha = ref_data["object"]["sha"]
+
+            # Create new branch
+            return await self._request(
+                "POST",
+                f"/repos/{repo}/git/refs",
+                json={"ref": f"refs/heads/{branch_name}", "sha": sha},
+            )
+        except Exception:
+            logger.warning("create_branch failed", exc_info=True)
+            return {"ref": f"refs/heads/{branch_name}", "sha": "error"}
+
+    async def create_or_update_file(
+        self,
+        repo: str,
+        path: str,
+        content: str,
+        message: str,
+        branch: str,
+    ) -> dict[str, Any]:
+        """Create or update a file on a branch via GitHub Contents API.
+
+        Automatically handles existing files by fetching their current SHA.
+        The content is base64-encoded before sending.
+        """
+        import base64
+
+        if not self.use_github:
+            return {"content": {"path": path, "sha": "mock_sha"}, "commit": {"sha": "mock_commit"}}
+        try:
+            # Check if file exists (need its sha for update)
+            sha: Optional[str] = None
+            try:
+                existing = await self._request(
+                    "GET",
+                    f"/repos/{repo}/contents/{path}",
+                    params={"ref": branch},
+                )
+                sha = existing.get("sha")
+            except Exception:
+                pass  # file doesn't exist yet
+
+            payload: dict[str, Any] = {
+                "message": message,
+                "content": base64.b64encode(content.encode("utf-8")).decode("ascii"),
+                "branch": branch,
+            }
+            if sha:
+                payload["sha"] = sha
+
+            return await self._request(
+                "PUT", f"/repos/{repo}/contents/{path}", json=payload
+            )
+        except Exception:
+            logger.warning("create_or_update_file failed", exc_info=True)
+            return {"content": {"path": path}, "commit": {"sha": "error"}}
+
+    async def create_pull_request(
+        self,
+        repo: str,
+        title: str,
+        body: str,
+        head: str,
+        base: str = "main",
+    ) -> dict[str, Any]:
+        """Create a pull request on a specific repository.
+
+        Unlike ``create_pr`` (which uses ``self.owner_repo``), this method
+        accepts an explicit ``repo`` parameter for use by swarm agents
+        operating on dynamically-connected repositories.
+        """
+        if not self.use_github:
+            return {
+                "number": 999,
+                "title": title,
+                "body": body,
+                "html_url": f"https://github.com/{repo}/pull/999",
+                "state": "open",
+            }
+        try:
+            return await self._request(
+                "POST",
+                f"/repos/{repo}/pulls",
+                json={"title": title, "body": body, "head": head, "base": base},
+            )
+        except Exception:
+            logger.warning("create_pull_request failed", exc_info=True)
+            return {
+                "number": 999,
+                "title": title,
+                "html_url": f"https://github.com/{repo}/pull/999",
+                "state": "open",
+            }
+
+    async def add_pr_comment(
+        self, repo: str, pr_number: int, body: str
+    ) -> dict[str, Any]:
+        """Add a comment to a pull request."""
+        if not self.use_github:
+            return {"id": 1, "body": body}
+        try:
+            return await self._request(
+                "POST",
+                f"/repos/{repo}/issues/{pr_number}/comments",
+                json={"body": body},
+            )
+        except Exception:
+            logger.warning("add_pr_comment failed", exc_info=True)
+            return {"id": 0, "body": body}
+

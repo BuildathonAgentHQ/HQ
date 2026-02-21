@@ -1,0 +1,27 @@
+
+> agent-hq-frontend@0.1.0 dev
+> next dev
+
+  ▲ Next.js 14.2.35
+  - Local:        http://localhost:3000
+  - Environments: .env.local
+
+ ✓ Starting...
+ ✓ Ready in 1202ms
+ ○ Compiling / ...
+ ✓ Compiled / in 1040ms (1884 modules)
+ GET / 200 in 1234ms
+ ✓ Compiled /repos in 304ms (1896 modules)
+ ✓ Compiled /repos/[repoId]/prs in 235ms (1910 modules)
+ ✓ Compiled /console in 158ms (1918 modules)
+ ✓ Compiled /_not-found in 343ms (1921 modules)
+ GET /.well-known/appspecific/com.chrome.devtools.json 404 in 453ms
+ GET / 200 in 120ms
+ GET /.well-known/appspecific/com.chrome.devtools.json 404 in 22ms
+ GET /sourceMap/assets/css/lollipop.css.map 404 in 23ms
+ GET /sourceMap/assets/css/toolbox.css.map 404 in 20ms
+ ○ Compiling /pr-radar ...
+ ✓ Compiled /pr-radar in 789ms (1932 modules)
+ ✓ Compiled /_not-found in 375ms (1935 modules)
+ GET /pr-radar/9 404 in 106ms
+ GET /pr-radar 200 in 33ms
