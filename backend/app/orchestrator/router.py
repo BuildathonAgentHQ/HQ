@@ -27,7 +27,11 @@ router = APIRouter()
 
 # ── Module-level singletons (created once at import time) ───────────────────
 task_manager = TaskManager(seed_mock=False)
+<<<<<<< HEAD
 process_manager = ProcessManager(event_router=event_router, task_manager=task_manager)
+=======
+process_manager = ProcessManager(event_router=event_router)
+>>>>>>> 83af067 (Fixes)
 escalation_manager = EscalationManager(process_manager=process_manager, event_router=event_router)
 
 async def _on_guardrail_triggered(ws_event: WebSocketEvent) -> None:
@@ -122,6 +126,19 @@ async def get_task(task_id: str) -> Task:
     if not task:
         raise HTTPException(status_code=404, detail=f"Task {task_id} not found")
     return task
+
+
+@router.get("/{task_id}/output")
+async def get_task_output(task_id: str) -> dict[str, str]:
+    """Get the accumulated stdout of a task.
+    
+    Used to preview generated code before approval.
+    """
+    if not task_manager.get_task(task_id):
+        raise HTTPException(status_code=404, detail=f"Task {task_id} not found")
+        
+    lines = process_manager.task_output_buffers.get(task_id, [])
+    return {"output": "\n".join(lines)}
 
 
 @router.delete("/{task_id}")

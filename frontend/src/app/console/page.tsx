@@ -1,8 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import { getTasks } from "@/hooks/use-api";
-import type { Task } from "@/lib/types";
+import { useWebSocket } from "@/hooks/use-websocket";
+import { WS_URL } from "@/lib/constants";
+import type { Task, WebSocketEvent } from "@/lib/types";
 
 import { TaskCard } from "@/components/task-card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -11,6 +13,8 @@ import { Terminal } from "lucide-react";
 
 export default function ConsolePage() {
     const [tasks, setTasks] = useState<Task[] | null>(null);
+    const [activeFilter, setActiveFilter] = useState("all");
+    const { events } = useWebSocket(WS_URL);
 
     useEffect(() => {
         getTasks()
@@ -23,6 +27,27 @@ export default function ConsolePage() {
         }, 10_000);
         return () => clearInterval(id);
     }, []);
+
+    // Group events by task_id for passing to TaskCards
+    const eventsByTask = useMemo(() => {
+        const map: Record<string, Array<{ status: string; timestamp: string }>> = {};
+        for (const evt of events) {
+            if (!evt.task_id) continue;
+            const payload = evt.payload as Record<string, unknown> | undefined;
+            const status = String(payload?.status ?? payload?.message ?? evt.event_type ?? "");
+            const timestamp = String(evt.timestamp ?? new Date().toISOString());
+            if (!map[evt.task_id]) map[evt.task_id] = [];
+            map[evt.task_id].push({ status, timestamp });
+        }
+        return map;
+    }, [events]);
+
+    // Filter tasks
+    const filteredTasks = useMemo(() => {
+        if (!tasks) return null;
+        if (activeFilter === "all") return tasks;
+        return tasks.filter((t) => t.status === activeFilter);
+    }, [tasks, activeFilter]);
 
     return (
         <div className="space-y-6">
@@ -43,9 +68,20 @@ export default function ConsolePage() {
                         <Badge
                             key={s}
                             variant="secondary"
-                            className="capitalize cursor-pointer hover:bg-white/10 transition-colors"
+                            className={`capitalize cursor-pointer hover:bg-white/10 transition-colors ${activeFilter === s ? "bg-indigo-500/20 text-indigo-400 border-indigo-500/30" : ""}`}
+                            onClick={() => setActiveFilter(s)}
                         >
                             {s}
+                            {tasks && s !== "all" && (
+                                <span className="ml-1 text-[9px] opacity-60">
+                                    {tasks.filter((t) => t.status === s).length}
+                                </span>
+                            )}
+                            {tasks && s === "all" && (
+                                <span className="ml-1 text-[9px] opacity-60">
+                                    {tasks.length}
+                                </span>
+                            )}
                         </Badge>
                     )
                 )}
@@ -53,18 +89,26 @@ export default function ConsolePage() {
 
             {/* Task grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {!tasks ? (
+                {!filteredTasks ? (
                     Array.from({ length: 6 }).map((_, i) => (
                         <Skeleton key={i} className="h-32 w-full rounded-lg" />
                     ))
-                ) : tasks.length === 0 ? (
+                ) : filteredTasks.length === 0 ? (
                     <div className="col-span-full flex items-center justify-center h-64">
                         <p className="text-sm text-muted-foreground/60">
-                            No tasks yet. Deploy agents from the Dashboard.
+                            {activeFilter === "all"
+                                ? "No tasks yet. Deploy agents from the Dashboard."
+                                : `No ${activeFilter} tasks.`}
                         </p>
                     </div>
                 ) : (
-                    tasks.map((t) => <TaskCard key={t.id} task={t} />)
+                    filteredTasks.map((t) => (
+                        <TaskCard
+                            key={t.id}
+                            task={t}
+                            events={eventsByTask[t.id] ?? []}
+                        />
+                    ))
                 )}
             </div>
         </div>

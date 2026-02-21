@@ -130,17 +130,59 @@ async def get_pr_review(request: Request, repo_id: str, pr_number: int) -> dict[
 async def trigger_analysis(request: Request, repo_id: str) -> dict[str, str]:
     """Trigger a re-analysis of the repository by Claude.
 
-    Note: The actual analysis is performed by the swarm module (not yet built).
-    This endpoint validates the repo exists and returns a placeholder.
+    Runs the repo analyzer in the background and emits WebSocket events
+    for progress tracking.
     """
     try:
         repo = await request.app.state.repo_manager.get_repo(repo_id)
     except KeyError:
         raise HTTPException(status_code=404, detail=f"Repository not found: {repo_id}")
 
-    # TODO: Dispatch to swarm coordinator for full analysis
+    import asyncio
+    from backend.app.websocket.events import event_router
+    from shared.events import EventType, create_ws_event
+
+    async def _run_analysis():
+        """Background task: run Claude analysis and emit progress events."""
+        try:
+            # Emit start event
+            await event_router.emit(create_ws_event(
+                task_id=repo_id, event_type=EventType.STATUS_UPDATE,
+                payload={"status": f"Analyzing {repo.full_name}...", "category": "repo", "severity": "info"},
+            ))
+
+            analyzer = request.app.state.repo_analyzer
+            result = await analyzer.analyze_repository(repo_id)
+
+            # Update repo with analysis results
+            repo_mgr = request.app.state.repo_manager
+            from datetime import datetime, timezone
+            repo_obj = await repo_mgr.get_repo(repo_id)
+            repo_obj.last_analyzed = datetime.now(timezone.utc)
+            if result and hasattr(result, "health_score"):
+                repo_obj.health_score = result.health_score
+
+            # Emit completion event
+            await event_router.emit(create_ws_event(
+                task_id=repo_id, event_type=EventType.STATUS_UPDATE,
+                payload={
+                    "status": f"Analysis complete for {repo.full_name}",
+                    "category": "repo", "severity": "info",
+                    "health_score": getattr(result, "health_score", None),
+                },
+            ))
+            logger.info("Analysis complete for %s", repo.full_name)
+        except Exception as exc:
+            logger.error("Analysis failed for %s: %s", repo.full_name, exc)
+            await event_router.emit(create_ws_event(
+                task_id=repo_id, event_type=EventType.STATUS_UPDATE,
+                payload={"status": f"Analysis failed: {exc}", "category": "repo", "severity": "error"},
+            ))
+
+    asyncio.create_task(_run_analysis())
     return {
-        "status": "analysis_queued",
+        "status": "analysis_started",
         "repo_id": repo_id,
         "repo": repo.full_name,
     }
+

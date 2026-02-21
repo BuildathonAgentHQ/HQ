@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import Link from "next/link";
 import { useWebSocket } from "@/hooks/use-websocket";
 import { API_BASE_URL, WS_URL } from "@/lib/constants";
@@ -92,6 +92,20 @@ export default function DashboardPage() {
         apiFetch<SwarmPlan[]>("/swarm/plans/active").then(setSwarms).catch(() => setSwarms([]));
     }, []);
 
+    // Group events by task_id for TaskCards
+    const eventsByTask = useMemo(() => {
+        const map: Record<string, Array<{ status: string; timestamp: string }>> = {};
+        for (const evt of events) {
+            if (!evt.task_id) continue;
+            const payload = evt.payload as Record<string, unknown> | undefined;
+            const status = String(payload?.status ?? payload?.message ?? evt.event_type ?? "");
+            const timestamp = String(evt.timestamp ?? new Date().toISOString());
+            if (!map[evt.task_id]) map[evt.task_id] = [];
+            map[evt.task_id].push({ status, timestamp });
+        }
+        return map;
+    }, [events]);
+
     return (
         <div className="space-y-6">
             {/* ── Header ──────────────────────────────────────────── */}
@@ -174,12 +188,12 @@ export default function DashboardPage() {
                                     className="shrink-0 rounded-lg border border-border/30 bg-card/40 px-4 py-3 min-w-[200px] hover:border-indigo-500/30 transition-all"
                                 >
                                     <div className="flex items-center justify-between mb-1">
-                                        <span className="text-sm font-medium text-white truncate">
+                                        <span className="text-sm font-medium text-white truncate min-w-0 mr-2 flex-1">
                                             {repo.full_name}
                                         </span>
-                                        <span className={`text-xs font-bold ${healthColor(repo.health_score)}`}>
+                                        <Badge variant="outline" className={`text-[10px] font-bold shrink-0 ${healthColor(repo.health_score)}`}>
                                             {repo.health_score ?? "—"}
-                                        </span>
+                                        </Badge>
                                     </div>
                                     <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
                                         <span>{repo.tech_stack.slice(0, 2).join(", ") || "—"}</span>
@@ -309,7 +323,7 @@ export default function DashboardPage() {
                                 No tasks yet. Deploy your first agent above.
                             </p>
                         ) : (
-                            tasks.map((t) => <TaskCard key={t.id} task={t} />)
+                            tasks.map((t) => <TaskCard key={t.id} task={t} events={eventsByTask[t.id] ?? []} />)
                         )}
                     </CardContent>
                 </Card>

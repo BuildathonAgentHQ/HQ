@@ -3,13 +3,15 @@
 import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/hooks/use-toast";
-import { API_BASE_URL } from "@/lib/constants";
+import { API_BASE_URL, WS_URL } from "@/lib/constants";
+import { useWebSocket } from "@/hooks/use-websocket";
 import type { PRRiskScore, PRReview, CodeIssue } from "@/lib/types";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { TestPreviewModal, type TestPreviewState } from "@/components/test-preview-modal";
 
 import {
     GitPullRequest,
@@ -97,13 +99,25 @@ interface PRWithReview {
 export default function PRRadarPage() {
     const router = useRouter();
     const { toast } = useToast();
+    const { events } = useWebSocket(WS_URL);
     const [prs, setPrs] = useState<PRWithReview[]>([]);
     const [loading, setLoading] = useState(true);
     const [reviewing, setReviewing] = useState<Set<number>>(new Set());
     const [fixing, setFixing] = useState<Set<number>>(new Set());
+    const [testPreview, setTestPreview] = useState<TestPreviewState>({ status: "idle", prNumber: null, taskId: null, code: null });
+    const [selectedPR, setSelectedPR] = useState<number | null>(null);
+    const [repoId, setRepoId] = useState<string | null>(null);
 
     const fetchPRs = useCallback(async () => {
         try {
+            // Fetch repos to get repo_id for swarm calls
+            const reposRes = await fetch(`${API_BASE_URL}/repos`);
+            if (reposRes.ok) {
+                const repos = await reposRes.json();
+                if (repos.length > 0) {
+                    setRepoId(repos[0].id);
+                }
+            }
             const res = await fetch(`${API_BASE_URL}/control-plane/prs`);
             if (res.ok) {
                 const data = await res.json();
@@ -123,13 +137,17 @@ export default function PRRadarPage() {
     // ── Actions ─────────────────────────────────────────────────────────
 
     const handleDeepReview = async (prNumber: number) => {
+        if (!repoId) {
+            toast({ title: "No repository connected", description: "Connect a repo first", variant: "destructive" });
+            return;
+        }
         setReviewing((prev) => new Set(prev).add(prNumber));
         try {
             await apiFetch("/swarm/plan", {
                 method: "POST",
-                body: JSON.stringify({ pr_number: prNumber, mode: "pr_review" }),
+                body: JSON.stringify({ repo_id: repoId, pr_number: prNumber, mode: "pr_review" }),
             });
-            toast({ title: "Deep review started", description: `Claude is analyzing PR #${prNumber}…` });
+            toast({ title: "Review started", description: `Claude is analyzing PR #${prNumber}…` });
             // Refresh after a delay to get the review
             setTimeout(fetchPRs, 5000);
         } catch {
@@ -144,11 +162,15 @@ export default function PRRadarPage() {
     };
 
     const handleFixIssues = async (prNumber: number) => {
+        if (!repoId) {
+            toast({ title: "No repository connected", variant: "destructive" });
+            return;
+        }
         setFixing((prev) => new Set(prev).add(prNumber));
         try {
             const planRes = await apiFetch<{ plan: { id: string } | null }>("/swarm/plan", {
                 method: "POST",
-                body: JSON.stringify({ pr_number: prNumber, mode: "fix_issues" }),
+                body: JSON.stringify({ repo_id: repoId, pr_number: prNumber, mode: "fix_issues" }),
             });
             if (planRes.plan?.id) {
                 await apiFetch(`/swarm/plans/${planRes.plan.id}/execute`, { method: "POST" });
@@ -165,9 +187,54 @@ export default function PRRadarPage() {
         }
     };
 
+    // ── WebSocket listener for Test Generation ─────────────────────────────
+    useEffect(() => {
+        if (!testPreview.taskId || testPreview.status !== "generating") return;
+
+        // Find the most recent event for our task
+        const relevantEvents = events.filter(e => e.task_id === testPreview.taskId);
+        if (relevantEvents.length === 0) return;
+
+        const latest = relevantEvents[0]; // Events are latest-first
+
+        // Handle live status text updates (e.g. "Reading files...", "Writing tests...")
+        if (latest.event_type === "status_update" && latest.payload?.message) {
+            setTestPreview(prev => ({
+                ...prev,
+                liveStatus: latest.payload.message as string
+            }));
+        }
+
+        // Handle completion
+        if (latest.event_type === "task_lifecycle" &&
+            (latest.payload?.status === "completed" || latest.payload?.status === "failed" || latest.payload?.status === "success")) {
+
+            // Task is done. Fetch the exact code output immediately.
+            setTestPreview(prev => ({ ...prev, liveStatus: "Finalizing code output..." }));
+
+            fetch(`${API_BASE_URL}/tasks/${testPreview.taskId}/output`)
+                .then(res => res.json())
+                .then(outData => {
+                    setTestPreview(prev => ({
+                        ...prev,
+                        status: "reviewing",
+                        code: outData.output || "No output collected. Check backend logs."
+                    }));
+                })
+                .catch(e => {
+                    console.error("Failed to fetch final output:", e);
+                    setTestPreview(prev => ({
+                        ...prev,
+                        status: "reviewing",
+                        code: "Error retrieving generated tests."
+                    }));
+                });
+        }
+    }, [events, testPreview.taskId, testPreview.status]);
+
     const generateTests = async (prNumber: number) => {
         try {
-            await fetch(`${API_BASE_URL}/tasks/`, {
+            const res = await fetch(`${API_BASE_URL}/tasks/`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
@@ -177,9 +244,37 @@ export default function PRRadarPage() {
                     budget_limit: 2.0,
                 }),
             });
-            toast({ title: "Test Writer dispatched", description: `Generating tests for PR #${prNumber}` });
+            if (!res.ok) throw new Error("Failed to start task");
+            const taskObj = await res.json();
+
+            // Set state to start showing the modal. The useEffect block above will handle listening for WebSocket events
+            setTestPreview({
+                status: "generating",
+                prNumber,
+                taskId: taskObj.id,
+                code: null,
+                liveStatus: "Starting test generator agent..."
+            });
+
         } catch {
             toast({ title: "Failed to dispatch", variant: "destructive" });
+        }
+    };
+
+    const handleApproveTest = async (taskId: string) => {
+        setTestPreview(prev => ({ ...prev, status: "applying" }));
+        try {
+            // Tell the task to proceed via approve endpoint
+            await fetch(`${API_BASE_URL}/tasks/${taskId}/approve`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" }
+            });
+
+            toast({ title: "Tests Approved", description: `PR updates will be pushed shortly.` });
+            setTestPreview({ status: "idle", prNumber: null, taskId: null, code: null });
+        } catch {
+            toast({ title: "Failed to approve", variant: "destructive" });
+            setTestPreview(prev => ({ ...prev, status: "reviewing" }));
         }
     };
 
@@ -301,8 +396,8 @@ export default function PRRadarPage() {
                                                             <p className="text-muted-foreground truncate">{issue.description}</p>
                                                         </div>
                                                         <Badge variant="outline" className={`text-[9px] shrink-0 ${issue.severity === "critical" ? "text-red-400 border-red-500/20"
-                                                                : issue.severity === "high" ? "text-orange-400 border-orange-500/20"
-                                                                    : "text-slate-400 border-slate-500/20"
+                                                            : issue.severity === "high" ? "text-orange-400 border-orange-500/20"
+                                                                : "text-slate-400 border-slate-500/20"
                                                             }`}>{issue.severity}</Badge>
                                                     </div>
                                                 ))}
@@ -335,7 +430,7 @@ export default function PRRadarPage() {
                                                 disabled={isReviewing}
                                             >
                                                 {isReviewing ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : <Eye className="h-3.5 w-3.5 mr-1" />}
-                                                Deep Review
+                                                Review
                                             </Button>
 
                                             {/* Fix issues */}
@@ -369,18 +464,77 @@ export default function PRRadarPage() {
                                                 size="sm"
                                                 variant="ghost"
                                                 className="h-7 text-xs text-slate-400 hover:text-white"
-                                                onClick={() => router.push(`/pr-radar/${pr.pr_number}`)}
+                                                onClick={() => setSelectedPR(selectedPR === pr.pr_number ? null : pr.pr_number)}
                                             >
-                                                View →
+                                                {selectedPR === pr.pr_number ? "Hide ↑" : "View →"}
                                             </Button>
                                         </div>
                                     </div>
                                 </div>
+
+                                {/* ── Expanded Review Detail ──────── */}
+                                {selectedPR === pr.pr_number && review && (
+                                    <div className="border-t border-border/20 bg-card/40 p-5 space-y-4">
+                                        <div className="flex items-center gap-3">
+                                            <h4 className="text-sm font-bold text-white">Full Review — PR #{pr.pr_number}</h4>
+                                            {verdict && (
+                                                <Badge className={verdict.color}>
+                                                    {verdict.emoji} {verdict.label}
+                                                </Badge>
+                                            )}
+                                        </div>
+
+                                        {review.summary && (
+                                            <div className="bg-indigo-500/[0.06] rounded-lg p-4 border border-indigo-500/20">
+                                                <p className="text-sm text-slate-300 leading-relaxed">{review.summary}</p>
+                                            </div>
+                                        )}
+
+                                        {review.issues.length > 0 && (
+                                            <div className="space-y-2">
+                                                <h5 className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Issues ({review.issues.length})</h5>
+                                                {review.issues.map((issue) => (
+                                                    <div key={issue.id} className="flex items-start gap-3 text-sm rounded-md bg-card/80 px-3 py-2 border border-border/20">
+                                                        <span className="text-base">{ISSUE_EMOJI[issue.issue_type] ?? "📋"}</span>
+                                                        <div className="min-w-0 flex-1">
+                                                            <div className="flex items-center gap-2 mb-1">
+                                                                <span className="font-mono text-indigo-400 text-xs">{issue.file_path}</span>
+                                                                <Badge variant="outline" className={`text-[9px] ${issue.severity === "critical" ? "text-red-400" : issue.severity === "high" ? "text-orange-400" : "text-slate-400"}`}>
+                                                                    {issue.severity}
+                                                                </Badge>
+                                                            </div>
+                                                            <p className="text-muted-foreground text-xs">{issue.description}</p>
+                                                            {issue.suggestion && (
+                                                                <p className="text-emerald-400/80 text-xs mt-1">💡 {issue.suggestion}</p>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
+
+                                        {review.issues.length === 0 && (
+                                            <p className="text-sm text-emerald-400">✅ No issues found — this PR looks clean!</p>
+                                        )}
+                                    </div>
+                                )}
+
+                                {selectedPR === pr.pr_number && !review && (
+                                    <div className="border-t border-border/20 bg-card/40 p-5 text-center">
+                                        <p className="text-sm text-muted-foreground">No review data yet. Click &quot;Review&quot; to start a Claude analysis.</p>
+                                    </div>
+                                )}
                             </Card>
                         );
                     })}
                 </div>
             )}
+
+            <TestPreviewModal
+                preview={testPreview}
+                onDismiss={() => setTestPreview({ status: "idle", prNumber: null, taskId: null, code: null })}
+                onApprove={handleApproveTest}
+            />
         </div>
     );
 }

@@ -145,25 +145,38 @@ export function SwarmMonitor({ plan, className }: SwarmMonitorProps) {
     return (
         <div className={cn("w-full", className)}>
             {/* Header */}
-            <div className="flex items-center justify-between mb-3">
-                <h4 className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
-                    Swarm Pipeline
-                </h4>
-                <Badge
-                    variant="outline"
-                    className={cn(
-                        "text-[10px]",
-                        plan.status === "executing"
-                            ? "border-indigo-500/30 text-indigo-400"
-                            : plan.status === "completed"
-                                ? "border-emerald-500/30 text-emerald-400"
-                                : plan.status === "failed"
-                                    ? "border-red-500/30 text-red-400"
-                                    : "border-slate-500/30 text-slate-400"
+            <div className="flex flex-col gap-1 mb-4">
+                <div className="flex items-center justify-between">
+                    <h4 className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
+                        Swarm Pipeline
+                    </h4>
+                    <Badge
+                        variant="outline"
+                        className={cn(
+                            "text-[10px]",
+                            plan.status === "executing"
+                                ? "border-indigo-500/30 text-indigo-400"
+                                : plan.status === "completed"
+                                    ? "border-emerald-500/30 text-emerald-400"
+                                    : plan.status === "failed"
+                                        ? "border-red-500/30 text-red-400"
+                                        : "border-slate-500/30 text-slate-400"
+                        )}
+                    >
+                        {plan.status}
+                    </Badge>
+                </div>
+
+                {/* Association Subtitle */}
+                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                    {plan.pr_number ? (
+                        <span className="font-medium text-emerald-400">PR #{plan.pr_number}</span>
+                    ) : (
+                        <span className="font-medium text-indigo-400">Repo Audit</span>
                     )}
-                >
-                    {plan.status}
-                </Badge>
+                    <span className="text-slate-600">•</span>
+                    <span className="truncate">{plan.plan_summary}</span>
+                </div>
             </div>
 
             {/* Pipeline */}
