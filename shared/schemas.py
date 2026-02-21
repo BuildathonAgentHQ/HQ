@@ -34,7 +34,7 @@ class TaskCreate(BaseModel):
         ...,
         description="Natural-language description of the work the agent should do.",
     )
-    engine: Literal["claude-code", "cursor-cli"] = Field(
+    engine: Literal["claude-code", "cursor-cli", "gemini-cli", "codex"] = Field(
         ...,
         description="Which agent engine to dispatch to.",
     )
@@ -802,6 +802,10 @@ class SwarmTask(BaseModel):
         "doc_writer",
         "fix_generator",
     ] = Field(..., description="Which specialist agent handles this task.")
+    engine: str = Field(
+        "claude-code",
+        description="Agent engine to use (e.g. 'claude-code', 'gemini-cli', 'codex').",
+    )
     task_description: str = Field(
         ..., description="What this agent should do."
     )

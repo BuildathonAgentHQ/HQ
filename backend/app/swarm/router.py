@@ -52,6 +52,7 @@ class DispatchAgentRequest(BaseModel):
     description: str
     target: str
     repo_id: Optional[str] = None
+    engine: Optional[str] = "claude-code"
 
 
 # ═════════════════════════════════════════════════════════════════════════════
@@ -98,9 +99,12 @@ async def dispatch_agent(request: Request, body: DispatchAgentRequest) -> dict[s
 
     plan = await orchestrator.plan_fix(repo_id, [issue])
 
+    engine = body.engine or "claude-code"
+
     if plan.tasks:
         for t in plan.tasks:
             t.agent_type = agent_type
+            t.engine = engine
 
     async def _run_pipeline() -> None:
         try:
@@ -123,7 +127,8 @@ async def dispatch_agent(request: Request, body: DispatchAgentRequest) -> dict[s
         "plan_id": plan.id,
         "status": "dispatched",
         "agent_type": agent_type,
-        "message": f"Agent dispatched. Plan has {len(plan.tasks)} task(s). "
+        "engine": engine,
+        "message": f"Agent dispatched via {engine}. Plan has {len(plan.tasks)} task(s). "
                    "A PR will be created automatically when the agent finishes.",
     }
 

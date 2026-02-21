@@ -101,6 +101,32 @@ SAMPLE_TASKS: list[Task] = [
         token_count=35_800,
         strike_count=1,
     ),
+    Task(
+        id="task-006",
+        task="Generate integration tests for the OAuth2 login flow",
+        engine="gemini-cli",
+        agent_type="test_writer",
+        status="success",
+        budget_limit=1.5,
+        budget_used=0.42,
+        created_at=_now - timedelta(hours=2),
+        updated_at=_now - timedelta(hours=1, minutes=30),
+        token_count=28_500,
+        strike_count=0,
+    ),
+    Task(
+        id="task-007",
+        task="Refactor the event bus to use typed channels",
+        engine="codex",
+        agent_type="refactor",
+        status="running",
+        budget_limit=3.0,
+        budget_used=0.73,
+        created_at=_now - timedelta(minutes=20),
+        updated_at=_now - timedelta(minutes=5),
+        token_count=19_200,
+        strike_count=0,
+    ),
 ]
 
 
@@ -325,7 +351,7 @@ SAMPLE_RADAR_METRICS = TelemetryMetrics(
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
-#  SAMPLE_LEADERBOARD — 3 agent engine rankings
+#  SAMPLE_LEADERBOARD — 4 agent engine rankings
 # ═══════════════════════════════════════════════════════════════════════════════
 
 SAMPLE_LEADERBOARD: list[AgentLeaderboardEntry] = [
@@ -346,12 +372,20 @@ SAMPLE_LEADERBOARD: list[AgentLeaderboardEntry] = [
         total_tokens=890_000,
     ),
     AgentLeaderboardEntry(
-        engine="gemini-exp",
-        tasks_completed=18,
-        success_rate=0.78,
-        avg_duration_seconds=310.0,
-        avg_cost_dollars=0.29,
-        total_tokens=520_000,
+        engine="gemini-cli",
+        tasks_completed=22,
+        success_rate=0.82,
+        avg_duration_seconds=260.0,
+        avg_cost_dollars=0.31,
+        total_tokens=640_000,
+    ),
+    AgentLeaderboardEntry(
+        engine="codex",
+        tasks_completed=15,
+        success_rate=0.80,
+        avg_duration_seconds=290.0,
+        avg_cost_dollars=0.40,
+        total_tokens=480_000,
     ),
 ]
 

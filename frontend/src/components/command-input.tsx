@@ -22,6 +22,8 @@ import { Rocket } from "lucide-react";
 const ENGINES = [
     { value: "claude-code", label: "Claude Code" },
     { value: "cursor-cli", label: "Cursor CLI" },
+    { value: "gemini-cli", label: "Gemini CLI" },
+    { value: "codex", label: "Codex" },
 ] as const;
 
 const AGENT_TYPES = [

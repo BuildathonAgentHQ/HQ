@@ -476,7 +476,6 @@ class ProcessManager:
 
         if task.engine == "claude-code":
             cmd = ["claude", "-p", prompt, "--dangerously-skip-permissions"]
-            # Add MCP config if it exists and feature flag is enabled
             mcp_path = Path(self.MCP_CONFIG_PATH)
             if settings.USE_NIA_MCP and mcp_path.exists():
                 cmd.extend(["--mcp-config", str(mcp_path)])
@@ -484,6 +483,12 @@ class ProcessManager:
 
         elif task.engine == "cursor-cli":
             return ["cursor", "--cli", "--prompt", prompt]
+
+        elif task.engine == "gemini-cli":
+            return ["gemini", "-p", prompt]
+
+        elif task.engine == "codex":
+            return ["codex", "--prompt", prompt, "--auto-edit"]
 
         else:
             logger.warning("Unknown engine '%s' — falling back to echo", task.engine)

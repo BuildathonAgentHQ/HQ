@@ -16,7 +16,7 @@
 /** Payload the frontend sends to create a new agent task. */
 export interface TaskCreate {
     task: string;
-    engine: "claude-code" | "cursor-cli";
+    engine: "claude-code" | "cursor-cli" | "gemini-cli" | "codex";
     agent_type:
     | "general"
     | "test_writer"

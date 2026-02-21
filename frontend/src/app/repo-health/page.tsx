@@ -15,7 +15,21 @@ import {
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select";
 import { API_BASE_URL } from "@/lib/constants";
+
+const ENGINES = [
+    { value: "claude-code", label: "Claude Code" },
+    { value: "cursor-cli", label: "Cursor CLI" },
+    { value: "gemini-cli", label: "Gemini CLI" },
+    { value: "codex", label: "Codex" },
+] as const;
 
 export default function RepoHealthPage() {
     const [healthData, setHealthData] = useState<any>(null);
@@ -43,6 +57,9 @@ export default function RepoHealthPage() {
 
     const [dispatching, setDispatching] = useState<string | null>(null);
     const [dispatchResult, setDispatchResult] = useState<Record<string, any>>({});
+    const [selectedEngines, setSelectedEngines] = useState<Record<string, string>>({});
+
+    const getEngine = (key: string) => selectedEngines[key] ?? "claude-code";
 
     const executeAction = async (action: any) => {
         const key = `${action.action_type}-${action.target}`;
@@ -57,6 +74,7 @@ export default function RepoHealthPage() {
                     action_type: action.action_type,
                     description: action.description,
                     target: action.target,
+                    engine: getEngine(key),
                 }),
             });
 
@@ -180,14 +198,34 @@ export default function RepoHealthPage() {
                                             }
 
                                             return (
-                                                <Button
-                                                    size="sm"
-                                                    className="bg-indigo-600 hover:bg-indigo-700 text-white w-full sm:w-auto"
-                                                    disabled={isRunning}
-                                                    onClick={() => executeAction(action)}
-                                                >
-                                                    {isRunning ? "Dispatching…" : "Dispatch Agent"}
-                                                </Button>
+                                                <div className="flex items-center gap-2">
+                                                    <Select
+                                                        value={getEngine(key)}
+                                                        onValueChange={(v) =>
+                                                            setSelectedEngines((prev) => ({ ...prev, [key]: v }))
+                                                        }
+                                                        disabled={isRunning}
+                                                    >
+                                                        <SelectTrigger className="w-[140px] h-8 bg-white/[0.04] border-white/10 text-xs">
+                                                            <SelectValue />
+                                                        </SelectTrigger>
+                                                        <SelectContent>
+                                                            {ENGINES.map((e) => (
+                                                                <SelectItem key={e.value} value={e.value}>
+                                                                    {e.label}
+                                                                </SelectItem>
+                                                            ))}
+                                                        </SelectContent>
+                                                    </Select>
+                                                    <Button
+                                                        size="sm"
+                                                        className="bg-indigo-600 hover:bg-indigo-700 text-white w-full sm:w-auto"
+                                                        disabled={isRunning}
+                                                        onClick={() => executeAction(action)}
+                                                    >
+                                                        {isRunning ? "Dispatching…" : "Dispatch Agent"}
+                                                    </Button>
+                                                </div>
                                             );
                                         })()}
                                     </div>

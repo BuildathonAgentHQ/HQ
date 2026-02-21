@@ -21,6 +21,8 @@ logger = logging.getLogger(__name__)
 DEFAULT_PRICING: dict[str, dict[str, float]] = {
     "claude-code": {"input": 3.00, "output": 15.00},
     "cursor-cli":  {"input": 2.00, "output": 10.00},
+    "gemini-cli":  {"input": 1.25, "output": 5.00},
+    "codex":       {"input": 2.50, "output": 10.00},
     "default":     {"input": 1.00, "output": 5.00},
 }
 
