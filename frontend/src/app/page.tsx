@@ -16,16 +16,22 @@ import { TimelineSlider } from "@/components/timeline-slider";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Cpu } from "lucide-react";
+import { Cpu, Github, ExternalLink } from "lucide-react";
+import { API_BASE_URL } from "@/lib/constants";
 
 export default function DashboardPage() {
     const { events, isConnected, sendMessage } = useWebSocket(WS_URL);
     const [tasks, setTasks] = useState<Task[] | null>(null);
+    const [repo, setRepo] = useState<{ repo_name: string; repo_url: string; repo_owner: string } | null>(null);
 
     useEffect(() => {
         getTasks()
             .then(setTasks)
             .catch(() => { });
+        fetch(`${API_BASE_URL}/config/repo`)
+            .then((r) => r.ok ? r.json() : null)
+            .then((data) => data && data.repo_name && setRepo(data))
+            .catch(() => {});
     }, []);
 
     return (
@@ -33,7 +39,21 @@ export default function DashboardPage() {
             {/* ── Header ──────────────────────────────────────────── */}
             <div className="flex items-center justify-between">
                 <div>
-                    <h2 className="text-2xl font-bold tracking-tight">Dashboard</h2>
+                    <div className="flex items-center gap-3">
+                        <h2 className="text-2xl font-bold tracking-tight">Dashboard</h2>
+                        {repo && (
+                            <a
+                                href={repo.repo_url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="flex items-center gap-1.5 rounded-full bg-white/5 border border-border/40 px-3 py-1 text-xs font-medium text-slate-300 hover:bg-white/10 hover:text-white transition-colors group"
+                            >
+                                <Github className="h-3.5 w-3.5" />
+                                <span>{repo.repo_owner}/{repo.repo_name}</span>
+                                <ExternalLink className="h-3 w-3 text-slate-500 group-hover:text-white" />
+                            </a>
+                        )}
+                    </div>
                     <p className="text-sm text-muted-foreground">
                         Monitor and deploy autonomous coding agents
                     </p>
