@@ -47,10 +47,12 @@ class AgentTelemetry:
         if self._use_databricks:
             try:
                 import mlflow
+                from mlflow.tracking import MlflowClient
 
                 mlflow.set_tracking_uri(settings.MLFLOW_TRACKING_URI)
                 mlflow.set_experiment("agent-hq")
-                self._client = mlflow
+                self._client = MlflowClient()
+                self._mlflow = mlflow  # keep module ref for start_run
                 logger.info(
                     "AgentTelemetry: Databricks MLflow enabled → %s",
                     settings.MLFLOW_TRACKING_URI,
@@ -82,8 +84,9 @@ class AgentTelemetry:
         ``task_description`` (first 100 chars).
         """
         if self._use_databricks:
-            run = self._client.start_run(run_name=f"task-{task.id[:8]}")
+            run = self._mlflow.start_run(run_name=f"task-{task.id[:8]}")
             run_id: str = run.info.run_id
+            self._mlflow.end_run()  # close fluent context; we use MlflowClient below
 
             self._client.log_param(run_id, "start_time", datetime.now(timezone.utc).isoformat())
             self._client.set_tag(run_id, "tool", task.engine)
@@ -111,8 +114,8 @@ class AgentTelemetry:
             return
 
         if self._use_databricks:
-            self._client.log_metric(run_id, "token_count", tokens)
-            self._client.log_metric(run_id, "cumulative_cost", cost)
+            self._client.log_metric(run_id, "token_count", float(tokens))
+            self._client.log_metric(run_id, "cumulative_cost", float(cost))
         else:
             self._client.log_metric("token_count", tokens, run_id=run_id)
             self._client.log_metric("cumulative_cost", cost, run_id=run_id)
@@ -146,12 +149,13 @@ class AgentTelemetry:
         duration = (task.updated_at - task.created_at).total_seconds()
 
         if self._use_databricks:
-            self._client.log_metric(run_id, "exit_code", float(task.exit_code if task.exit_code is not None else -1))
-            self._client.log_metric(run_id, "total_duration_seconds", duration)
+            exit_val = float(task.exit_code) if task.exit_code is not None else -1.0
+            self._client.log_metric(run_id, "exit_code", exit_val)
+            self._client.log_metric(run_id, "total_duration_seconds", float(duration))
             self._client.log_metric(run_id, "total_tokens", float(task.token_count))
             self._client.log_metric(run_id, "total_cost", float(task.budget_used))
             self._client.set_tag(run_id, "status", task.status)
-            self._client.end_run()
+            self._client.set_terminated(run_id, status="FINISHED" if task.status == "success" else "FAILED")
         else:
             self._client.log_metric("exit_code", float(task.exit_code if task.exit_code is not None else -1), run_id=run_id)
             self._client.log_metric("total_duration_seconds", duration, run_id=run_id)
@@ -269,14 +273,11 @@ class AgentTelemetry:
         """Retrieve all runs from the MLflow back-end."""
         try:
             if self._use_databricks:
-                import mlflow
-
-                experiment = mlflow.get_experiment_by_name("agent-hq")
+                experiment = self._client.get_experiment_by_name("agent-hq")
                 if experiment is None:
                     return []
-                runs = mlflow.search_runs(
+                runs = self._client.search_runs(
                     experiment_ids=[experiment.experiment_id],
-                    output_format="list",
                 )
                 # Convert MLflow Run objects → dicts
                 return [

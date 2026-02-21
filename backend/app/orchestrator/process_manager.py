@@ -30,6 +30,9 @@ from typing import Any, Optional
 from shared.events import EventType, create_ws_event
 from shared.schemas import ContextPayload, RawStreamEvent, Task
 
+from backend.app.config import settings
+from backend.app.translation.translator import TranslationLayer
+
 logger = logging.getLogger(__name__)
 
 
@@ -72,8 +75,10 @@ class ProcessManager:
                 to WebSocket clients and in-process handlers.
         """
         self._event_router = event_router
+        self._translator = TranslationLayer(settings)
         self.active_processes: dict[str, ManagedProcess] = {}
-        logger.info("ProcessManager initialised")
+        logger.info("ProcessManager initialised (translator=%s)",
+                    "nemotron" if settings.USE_NEMOTRON else "templates")
 
     # ── Spawn ───────────────────────────────────────────────────────────────
 
@@ -151,10 +156,11 @@ class ProcessManager:
     # ── Output streaming ────────────────────────────────────────────────────
 
     async def _stream_output(self, task_id: str, fd: int) -> None:
-        """Read PTY output asynchronously and emit ``RawStreamEvent`` s.
+        """Read PTY output, translate it, and emit ``TranslatedEvent`` events.
 
-        The function uses ``asyncio`` reader callbacks so the main event
-        loop is never blocked.
+        Raw bytes from the PTY are decoded, converted to ``RawStreamEvent``,
+        passed through the ``TranslationLayer`` to produce a human-friendly
+        ``TranslatedEvent``, and finally broadcast to WebSocket clients.
 
         Args:
             task_id: UUID of the owning task.
@@ -171,17 +177,23 @@ class ProcessManager:
                 if not data:
                     break  # EOF — child closed its side
 
-                text = data.decode("utf-8", errors="replace")
+                text = data.decode("utf-8", errors="replace").strip()
+                if not text:
+                    continue  # skip empty chunks
+
                 raw_event = RawStreamEvent(
                     task_id=task_id,
                     stream_type="stdout",
                     raw_content=text,
                 )
 
+                # ── Translate raw output → human-friendly event ────────
+                translated = await self._translator.translate(raw_event)
+
                 ws_event = create_ws_event(
                     task_id=task_id,
                     event_type=EventType.STATUS_UPDATE,
-                    payload=raw_event.model_dump(mode="json"),
+                    payload=translated.model_dump(mode="json"),
                 )
                 await self._event_router.emit(ws_event)
 

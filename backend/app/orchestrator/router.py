@@ -51,26 +51,17 @@ event_router.register_handler(EventType.GUARDRAIL_TRIGGERED, _on_guardrail_trigg
 
 @router.post("/", response_model=Task)
 async def create_task(payload: TaskCreate) -> Task:
-    """Create a new agent task and optionally spawn the agent process.
-
-    The task is immediately persisted with status ``"pending"``.  Then
-    ``ProcessManager.spawn_agent()`` is attempted.  If the engine binary
-    is missing (normal on dev machines), the task stays ``"pending"`` and
-    can be spawned later.
-
-    Args:
-        payload: TaskCreate from the frontend.
-
-    Returns:
-        The fully-formed Task object.
-    """
+    """Create a new agent task and optionally spawn the agent process."""
     task = task_manager.create_task(payload)
+    logger.info("Task created: %s (engine=%s)", task.id, task.engine)
 
     # Try to spawn the agent — but don't fail the API call if the
     # engine binary isn't installed.
     try:
+        logger.info("Attempting to spawn agent for task %s...", task.id)
         await process_manager.spawn_agent(task)
         task = task_manager.update_task(task.id, status="running") or task
+        logger.info("Agent spawned successfully for task %s (status=%s)", task.id, task.status)
     except FileNotFoundError:
         logger.warning(
             "Engine '%s' not found on PATH — task %s stays pending.",
