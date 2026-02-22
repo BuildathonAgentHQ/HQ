@@ -94,9 +94,13 @@ Respond in JSON:
 
 TEST_WRITER_PROMPT = """\
 You are a test engineering specialist. Given source code, write comprehensive tests. \
+IMPORTANT: Always name the test file using the pattern `test_{feature_name}.py` based \
+on the feature being tested. Never embed test code inside README or other documentation \
+files — always create a dedicated test file.
+
 Respond in JSON:
 {
-    "test_file_path": "suggested path for the test file",
+    "test_file_path": "test_{feature_name}.py — always a dedicated .py test file, never a README",
     "test_framework": "pytest|jest|mocha|etc",
     "test_code": "the complete test file content",
     "tests_written": [

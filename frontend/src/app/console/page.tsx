@@ -1,19 +1,5 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
-import { getTasks } from "@/hooks/use-api";
-import { useWebSocket } from "@/hooks/use-websocket";
-import { WS_URL } from "@/lib/constants";
-import type { Task } from "@/lib/types";
-import { useEffect, useState, useCallback, useMemo } from "react";
-import { getTasks } from "@/hooks/use-api";
-import { useWebSocket } from "@/hooks/use-websocket";
-import { WS_URL } from "@/lib/constants";
-import type { Task, WebSocketEvent } from "@/lib/types";
-
-import { TaskCard } from "@/components/task-card";
-import { TaskDetailSheet } from "@/components/task-detail-sheet";
-import { Skeleton } from "@/components/ui/skeleton";
 import { useEffect, useState, useRef, useCallback, useMemo } from "react";
 import { getTasks, injectPrompt, cancelTask, suspendTask, resumeTask } from "@/hooks/use-api";
 import { useWebSocket } from "@/hooks/use-websocket";
@@ -24,6 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
+import { RepoSelector } from "@/components/repo-selector";
 import { useToast } from "@/hooks/use-toast";
 import {
     Terminal,
@@ -98,142 +85,27 @@ function relativeTime(iso: string): string {
 
 type StatusFilter = "all" | "running" | "pending" | "success" | "failed" | "suspended";
 
-type StatusFilter = "all" | "running" | "pending" | "success" | "failed" | "suspended";
-
 export default function ConsolePage() {
     const [tasks, setTasks] = useState<Task[] | null>(null);
-    const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
-    const [selectedTask, setSelectedTask] = useState<Task | null>(null);
-    const [sheetOpen, setSheetOpen] = useState(false);
-    const { events, isConnected } = useWebSocket(WS_URL);
-
-    const filteredTasks = useMemo(() => {
-        if (!tasks) return null;
-        if (statusFilter === "all") return tasks;
-        return tasks.filter((t) => t.status === statusFilter);
-    }, [tasks, statusFilter]);
     const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
     const [filter, setFilter] = useState<StatusFilter>("all");
     const [chatInput, setChatInput] = useState("");
     const [isSending, setIsSending] = useState(false);
     const [chatMessages, setChatMessages] = useState<Record<string, ChatMessage[]>>({});
+    const [selectedRepoId, setSelectedRepoId] = useState<string | null>(null);
     const chatEndRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLInputElement>(null);
     const { toast } = useToast();
     const { events } = useWebSocket(WS_URL);
 
-    const [activeFilter, setActiveFilter] = useState("all");
-    const { events } = useWebSocket(WS_URL);
-
-
     useEffect(() => {
-        const fetchTasks = () => getTasks().then(setTasks).catch(() => {});
+        const fetchTasks = () => getTasks().then(setTasks).catch(() => { });
         fetchTasks();
         const id = setInterval(fetchTasks, 5_000);
         return () => clearInterval(id);
     }, []);
 
-    const handleSelectTask = (task: Task) => {
-        setSelectedTask(task);
-        setSheetOpen(true);
-    };
-    // Group events by task_id for passing to TaskCards
-    const eventsByTask = useMemo(() => {
-        const map: Record<string, Array<{ status: string; timestamp: string }>> = {};
-        for (const evt of events) {
-            if (!evt.task_id) continue;
-            const payload = evt.payload as Record<string, unknown> | undefined;
-            const status = String(payload?.status ?? payload?.message ?? evt.event_type ?? "");
-            const timestamp = String(evt.timestamp ?? new Date().toISOString());
-            if (!map[evt.task_id]) map[evt.task_id] = [];
-            map[evt.task_id].push({ status, timestamp });
-        }
-        return map;
-    }, [events]);
-
-    // Filter tasks
-    const filteredTasks = useMemo(() => {
-        if (!tasks) return null;
-        if (activeFilter === "all") return tasks;
-        return tasks.filter((t) => t.status === activeFilter);
-    }, [tasks, activeFilter]);
-
-    return (
-        <div className="space-y-6">
-            <div>
-                <h1 className="text-2xl font-bold tracking-tight flex items-center gap-3">
-                    <Terminal className="h-7 w-7 text-indigo-400" />
-                    Agent Console
-                </h1>
-                <p className="text-sm text-muted-foreground mt-1">
-                    All running and completed tasks — click a task to view details and chat
-                </p>
-            </div>
-
-            {/* Status filter */}
-            <div className="flex gap-2 flex-wrap">
-                {(["all", "running", "pending", "success", "failed", "suspended"] as const).map(
-                    (s) => (
-                        <Badge
-                            key={s}
-                            variant="secondary"
-                            className={`capitalize cursor-pointer hover:bg-white/10 transition-colors ${
-                                statusFilter === s ? "ring-1 ring-indigo-500/50 bg-indigo-500/10" : ""
-                            }`}
-                            onClick={() => setStatusFilter(s)}
-                            className={`capitalize cursor-pointer hover:bg-white/10 transition-colors ${activeFilter === s ? "bg-indigo-500/20 text-indigo-400 border-indigo-500/30" : ""}`}
-                            onClick={() => setActiveFilter(s)}
-                        >
-                            {s}
-                            {tasks && s !== "all" && (
-                                <span className="ml-1 text-[9px] opacity-60">
-                                    {tasks.filter((t) => t.status === s).length}
-                                </span>
-                            )}
-                            {tasks && s === "all" && (
-                                <span className="ml-1 text-[9px] opacity-60">
-                                    {tasks.length}
-                                </span>
-                            )}
-                        </Badge>
-                    )
-                )}
-                <span className="text-xs text-muted-foreground self-center ml-2">
-                    {isConnected ? (
-                        <span className="text-emerald-500">● Live</span>
-                    ) : (
-                        <span className="text-amber-500">○ Connecting…</span>
-                    )}
-                </span>
-            </div>
-
-            {/* Task grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {!filteredTasks ? (
-                    Array.from({ length: 6 }).map((_, i) => (
-                        <Skeleton key={i} className="h-32 w-full rounded-lg" />
-                    ))
-                ) : filteredTasks.length === 0 ? (
-                    <div className="col-span-full flex items-center justify-center h-64">
-                        <p className="text-sm text-muted-foreground/60">
-                            {statusFilter === "all"
-                                ? "No tasks yet. Deploy agents from the Dashboard."
-                                : `No ${statusFilter} tasks.`}
-                            {activeFilter === "all"
-                                ? "No tasks yet. Deploy agents from the Dashboard."
-                                : `No ${activeFilter} tasks.`}
-                        </p>
-                    </div>
-                ) : (
-                    filteredTasks.map((t) => (
-                        <TaskCard
-                            key={t.id}
-                            task={t}
-                            onSelect={handleSelectTask}
-                            events={eventsByTask[t.id] ?? []}
-                        />
-                    ))
-                )}
+    // Process WebSocket events into chat messages
     useEffect(() => {
         if (events.length === 0) return;
         const latest = events[0];
@@ -402,6 +274,10 @@ export default function ConsolePage() {
                     </p>
                 </div>
                 <div className="flex items-center gap-3">
+                    <RepoSelector
+                        selectedRepoId={selectedRepoId}
+                        onRepoChange={(id) => setSelectedRepoId(id)}
+                    />
                     {activeCount > 0 && (
                         <Badge className="bg-blue-500/15 text-blue-400 border-blue-500/30 animate-pulse">
                             <Zap className="h-3 w-3 mr-1" />
@@ -422,11 +298,10 @@ export default function ConsolePage() {
                         <button
                             key={s}
                             onClick={() => setFilter(s)}
-                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                                isActive
+                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${isActive
                                     ? "bg-indigo-500/20 text-indigo-300 ring-1 ring-indigo-500/30"
                                     : "bg-white/[0.03] text-muted-foreground hover:bg-white/[0.06] hover:text-white"
-                            }`}
+                                }`}
                         >
                             <span className="capitalize">{s}</span>
                             {count > 0 && (
@@ -440,7 +315,7 @@ export default function ConsolePage() {
             </div>
 
             <div className="flex-1 grid grid-cols-12 gap-4 min-h-0">
-                {/* Left: Agent list — which agent is performing which task */}
+                {/* Left: Agent list */}
                 <div className="col-span-4 flex flex-col min-h-0 rounded-xl border border-border/30 bg-white/[0.02] overflow-hidden">
                     <div className="px-4 py-3 border-b border-border/20 shrink-0">
                         <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-2">
@@ -474,16 +349,14 @@ export default function ConsolePage() {
                                         <button
                                             key={task.id}
                                             onClick={() => setSelectedTaskId(task.id)}
-                                            className={`w-full text-left rounded-lg p-3 transition-all ${
-                                                isSelected
+                                            className={`w-full text-left rounded-lg p-3 transition-all ${isSelected
                                                     ? "bg-indigo-500/10 ring-1 ring-indigo-500/30 shadow-lg shadow-indigo-500/5"
                                                     : "hover:bg-white/[0.04]"
-                                            }`}
+                                                }`}
                                         >
                                             <div className="flex items-start gap-2.5">
                                                 <span className={`mt-0.5 ${cfg.color}`}>{cfg.icon}</span>
                                                 <div className="flex-1 min-w-0">
-                                                    {/* Agent identity: engine + agent_type */}
                                                     <div className="flex items-center gap-1.5 flex-wrap mb-1">
                                                         <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-indigo-500/30 text-indigo-300">
                                                             {ENGINE_LABELS[task.engine] || task.engine}
@@ -600,8 +473,8 @@ export default function ConsolePage() {
                                                 {selectedTask.status === "running"
                                                     ? "Waiting for agent output..."
                                                     : selectedTask.status === "pending"
-                                                    ? "Agent hasn't started yet"
-                                                    : "No messages recorded"}
+                                                        ? "Agent hasn't started yet"
+                                                        : "No messages recorded"}
                                             </p>
                                         </div>
                                     </div>
@@ -609,22 +482,20 @@ export default function ConsolePage() {
                                     selectedMessages.map((msg) => (
                                         <div key={msg.id} className={`flex ${msg.type === "user" ? "justify-end" : "justify-start"}`}>
                                             <div
-                                                className={`max-w-[85%] rounded-lg px-3 py-2 ${
-                                                    msg.type === "user"
+                                                className={`max-w-[85%] rounded-lg px-3 py-2 ${msg.type === "user"
                                                         ? "bg-indigo-600/20 border border-indigo-500/20 text-indigo-100"
                                                         : msg.type === "system"
-                                                        ? "bg-white/[0.03] border border-border/20 text-muted-foreground"
-                                                        : msg.severity === "error"
-                                                        ? "bg-red-500/[0.07] border border-red-500/15"
-                                                        : msg.severity === "warning"
-                                                        ? "bg-amber-500/[0.07] border border-amber-500/15"
-                                                        : "bg-white/[0.03] border border-border/20"
-                                                }`}
+                                                            ? "bg-white/[0.03] border border-border/20 text-muted-foreground"
+                                                            : msg.severity === "error"
+                                                                ? "bg-red-500/[0.07] border border-red-500/15"
+                                                                : msg.severity === "warning"
+                                                                    ? "bg-amber-500/[0.07] border border-amber-500/15"
+                                                                    : "bg-white/[0.03] border border-border/20"
+                                                    }`}
                                             >
                                                 {msg.type !== "user" && msg.category && (
-                                                    <span className={`text-[9px] uppercase tracking-wider font-medium ${
-                                                        msg.severity === "error" ? "text-red-400/70" : msg.severity === "warning" ? "text-amber-400/70" : "text-muted-foreground/50"
-                                                    }`}>{msg.category}</span>
+                                                    <span className={`text-[9px] uppercase tracking-wider font-medium ${msg.severity === "error" ? "text-red-400/70" : msg.severity === "warning" ? "text-amber-400/70" : "text-muted-foreground/50"
+                                                        }`}>{msg.category}</span>
                                                 )}
                                                 <p className="text-sm leading-relaxed">{msg.content}</p>
                                                 <p className="text-[9px] text-muted-foreground/40 mt-1">{relativeTime(msg.timestamp)}</p>
@@ -675,14 +546,6 @@ export default function ConsolePage() {
                     )}
                 </div>
             </div>
-
-            {/* Task detail sheet with chat */}
-            <TaskDetailSheet
-                task={selectedTask}
-                open={sheetOpen}
-                onOpenChange={setSheetOpen}
-                events={events}
-            />
         </div>
     );
 }

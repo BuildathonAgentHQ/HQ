@@ -401,15 +401,6 @@ export default function ReposPage() {
                                 {/* Row 5: Actions */}
                                 <div className="flex items-center gap-2 pt-1 border-t border-border/20">
                                     <ActionBtn
-                                        icon={RefreshCw}
-                                        label="Re-analyze"
-                                        loading={isActionLoading(
-                                            `analyze-${repo.id}`
-                                        )}
-                                        onClick={() => handleReAnalyze(repo)}
-                                    />
-
-                                    <ActionBtn
                                         icon={Shield}
                                         label="Audit Repo"
                                         className="text-amber-400 hover:bg-amber-500/10"
@@ -417,6 +408,14 @@ export default function ReposPage() {
                                             `audit-${repo.id}`
                                         )}
                                         onClick={() => handleAudit(repo)}
+                                    />
+                                    <ActionBtn
+                                        icon={RefreshCw}
+                                        label="Re-analyze"
+                                        loading={isActionLoading(
+                                            `analyze-${repo.id}`
+                                        )}
+                                        onClick={() => handleReAnalyze(repo)}
                                     />
                                     <div className="flex-1" />
                                     <ActionBtn

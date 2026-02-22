@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import type { Task, WebSocketEvent } from "@/lib/types";
-import { injectTaskPrompt } from "@/hooks/use-api";
+import { injectPrompt } from "@/hooks/use-api";
 import { useToast } from "@/hooks/use-toast";
 
 import {
@@ -79,7 +79,7 @@ export function TaskDetailSheet({
         if (!task || !chatInput.trim() || !canChat || isSending) return;
         setIsSending(true);
         try {
-            await injectTaskPrompt(task.id, chatInput.trim());
+            await injectPrompt(task.id, chatInput.trim());
             setChatInput("");
             toast({
                 title: "Message sent",

@@ -12,6 +12,7 @@ import { HealthRadar } from "@/components/health-radar";
 import { TaskCard } from "@/components/task-card";
 import { Leaderboard } from "@/components/leaderboard";
 import { SwarmMonitor } from "@/components/swarm-monitor";
+import { RepoSelector } from "@/components/repo-selector";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -85,6 +86,7 @@ export default function DashboardPage() {
     const [reviews, setReviews] = useState<PRReview[] | null>(null);
     const [swarms, setSwarms] = useState<SwarmPlan[] | null>(null);
     const [refreshingTasks, setRefreshingTasks] = useState(false);
+    const [selectedRepoId, setSelectedRepoId] = useState<string | null>(null);
 
     const refreshTasks = useCallback(async () => {
         setRefreshingTasks(true);
@@ -126,18 +128,10 @@ export default function DashboardPage() {
                 <div>
                     <div className="flex items-center gap-3">
                         <h2 className="text-2xl font-bold tracking-tight">Dashboard</h2>
-                        {repos && repos.length > 0 && (
-                            <a
-                                href={`https://github.com/${repos[0].full_name}`}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="flex items-center gap-1.5 rounded-full bg-white/5 border border-border/40 px-3 py-1 text-xs font-medium text-slate-300 hover:bg-white/10 hover:text-white transition-colors group"
-                            >
-                                <GitFork className="h-3.5 w-3.5" />
-                                <span>{repos[0].full_name}</span>
-                                <ExternalLink className="h-3 w-3 text-slate-500 group-hover:text-white" />
-                            </a>
-                        )}
+                        <RepoSelector
+                            selectedRepoId={selectedRepoId}
+                            onRepoChange={(id) => setSelectedRepoId(id)}
+                        />
                     </div>
                     <p className="text-sm text-muted-foreground">
                         Monitor and deploy autonomous coding agents

@@ -2,100 +2,26 @@
 > agent-hq-frontend@0.1.0 dev
 > next dev
 
- ⚠ Port 3000 is in use, trying 3001 instead.
   ▲ Next.js 14.2.35
-  - Local:        http://localhost:3001
-  - Environments: .en ○ Compiling /repos ...
- ✓ Compiled /repos  ○ Compiling / ...
- ✓ Compiled / in 4.9s (1927 modules)
- GET / 200 in 5291ms
- ○ Compiling /repos ...
- ✓ Compiled /repos in 851ms (1935 modules)
- ✓ Compiled /console in 347ms (1929 modules)
- ✓ Compiled /pr-radar in 356ms (1949 modules)
- GET /pr-radar 200 in 120ms
- ✓ Compiled in 1620ms (1963 modules)
-Compiled in 1865ms (1971 modules)
- ✓ Compiled in 813ms (1957 modules)
- ✓ Compiled in 825ms (1963 modules)
- ✓ Compiled in 1144ms (1963 modules)
- ✓ Compiled in 575ms (1963 modules)
- GET /console 200 in 121ms
- ○ Compiling /_not-found ...
- ✓ Compiled /_not-found in 616ms (1952 modules)
- GET /_next/static/css/app/layout.css?v=1771722833709 404 in 810ms
- GET /_next/static/chunks/app-pages-internals.js 404 in 660ms
- GET /_next/static/chunks/app/console/page.js 404 in 659ms
- GET /_next/static/chunks/webpack.js?v=1771722833709 404 in 813ms
- GET /_next/static/chunks/main-app.js?v=1771722833709 404 in 663ms
- GET /_next/static/chunks/app/layout.js 404 in 659ms
- ⨯ Error: Cannot find module './417.js'
-Require stack:
-- /Users/notsofit/Documents/Hackathon/agent-hq/frontend/.next/server/webpack-runtime.js
-- /Users/notsofit/Documents/Hackathon/agent-hq/frontend/.next/server/app/_not-found/page.js
-- /Users/notsofit/Documents/Hackathon/agent-hq/frontend/node_modules/next/dist/server/require.js
-- /Users/notsofit/Documents/Hackathon/agent-hq/frontend/node_modules/next/dist/server/load-components.js
-- /Users/notsofit/Documents/Hackathon/agent-hq/frontend/node_modules/next/dist/build/utils.js
-- /Users/notsofit/Documents/Hackathon/agent-hq/frontend/node_modules/next/dist/server/dev/hot-middleware.js
-- /Users/notsofit/Documents/Hackathon/agent-hq/frontend/node_modules/next/dist/server/dev/hot-reloader-webpack.js
-- /Users/notsofit/Documents/Hackathon/agent-hq/frontend/node_modules/next/dist/server/lib/router-utils/setup-dev-bundler.js
-- /Users/notsofit/Documents/Hackathon/agent-hq/frontend/node_modules/next/dist/server/lib/router-server.js
-- /Users/notsofit/Documents/Hackathon/agent-hq/frontend/node_modules/next/dist/server/lib/start-server.js
-    at Module._resolveFilename (node:internal/modules/cjs/loader:1140:15)
-    at /Users/notsofit/Documents/Hackathon/agent-hq/frontend/node_modules/next/dist/server/require-hook.js:55:36
-    at Module._load (node:internal/modules/cjs/loader:981:27)
-    at Module.require (node:internal/modules/cjs/loader:1231:19)
-    at mod.require (/Users/notsofit/Documents/Hackathon/agent-hq/frontend/node_modules/next/dist/server/require-hook.js:65:28)
-    at require (node:internal/modules/helpers:177:18)
-    at __webpack_require__.f.require (/Users/notsofit/Documents/Hackathon/agent-hq/frontend/.next/server/webpack-runtime.js:203:28)
-    at /Users/notsofit/Documents/Hackathon/agent-hq/frontend/.next/server/webpack-runtime.js:111:40
-    at Array.reduce (<anonymous>)
-    at __webpack_require__.e (/Users/notsofit/Documents/Hackathon/agent-hq/frontend/.next/server/webpack-runtime.js:110:67)
-    at Array.map (<anonymous>)
-    at __webpack_require__.X (/Users/notsofit/Documents/Hackathon/agent-hq/frontend/.next/server/webpack-runtime.js:162:22)
-    at /Users/notsofit/Documents/Hackathon/agent-hq/frontend/.next/server/app/page.js:1:73968
-    at Object.<anonymous> (/Users/notsofit/Documents/Hackathon/agent-hq/frontend/.next/server/app/page.js:1:74025)
-    at Module._compile (node:internal/modules/cjs/loader:1364:14)
-    at Module._extensions..js (node:internal/modules/cjs/loader:1422:10)
-    at Module.load (node:internal/modules/cjs/loader:1203:32)
-    at Module._load (node:internal/modules/cjs/loader:1019:12)
-    at Module.require (node:internal/modules/cjs/loader:1231:19)
-    at mod.require (/Users/notsofit/Documents/Hackathon/agent-hq/frontend/node_modules/next/dist/server/require-hook.js:65:28)
-    at require (node:internal/modules/helpers:177:18)
-    at requirePage (/Users/notsofit/Documents/Hackathon/agent-hq/frontend/node_modules/next/dist/server/require.js:109:84)
-    at /Users/notsofit/Documents/Hackathon/agent-hq/frontend/node_modules/next/dist/server/load-components.js:103:84
-    at async loadComponentsImpl (/Users/notsofit/Documents/Hackathon/agent-hq/frontend/node_modules/next/dist/server/load-components.js:103:26)
-    at async DevServer.findPageComponentsImpl (/Users/notsofit/Documents/Hackathon/agent-hq/frontend/node_modules/next/dist/server/next-server.js:714:36)
-    at async DevServer.findPageComponents (/Users/notsofit/Documents/Hackathon/agent-hq/frontend/node_modules/next/dist/server/dev/next-dev-server.js:577:20)
-    at async DevServer.renderPageComponent (/Users/notsofit/Documents/Hackathon/agent-hq/frontend/node_modules/next/dist/server/base-server.js:1910:24)
-    at async DevServer.renderToResponseImpl (/Users/notsofit/Documents/Hackathon/agent-hq/frontend/node_modules/next/dist/server/base-server.js:1962:32)
-    at async DevServer.pipeImpl (/Users/notsofit/Documents/Hackathon/agent-hq/frontend/node_modules/next/dist/server/base-server.js:922:25)
-    at async NextNodeServer.handleCatchallRenderRequest (/Users/notsofit/Documents/Hackathon/agent-hq/frontend/node_modules/next/dist/server/next-server.js:272:17)
-    at async DevServer.handleRequestImpl (/Users/notsofit/Documents/Hackathon/agent-hq/frontend/node_modules/next/dist/server/base-server.js:818:17)
-    at async /Users/notsofit/Documents/Hackathon/agent-hq/frontend/node_modules/next/dist/server/dev/next-dev-server.js:339:20
-    at async Span.traceAsyncFn (/Users/notsofit/Documents/Hackathon/agent-hq/frontend/node_modules/next/dist/trace/trace.js:154:20)
-    at async DevServer.handleRequest (/Users/notsofit/Documents/Hackathon/agent-hq/frontend/node_modules/next/dist/server/dev/next-dev-server.js:336:24)
-    at async invokeRender (/Users/notsofit/Documents/Hackathon/agent-hq/frontend/node_modules/next/dist/server/lib/router-server.js:179:21)
-    at async handleRequest (/Users/notsofit/Documents/Hackathon/agent-hq/frontend/node_modules/next/dist/server/lib/router-server.js:359:24)
-    at async requestHandlerImpl (/Users/notsofit/Documents/Hackathon/agent-hq/frontend/node_modules/next/dist/server/lib/router-server.js:383:13)
-    at async Server.requestListener (/Users/notsofit/Documents/Hackathon/agent-hq/frontend/node_modules/next/dist/server/lib/start-server.js:141:13) {
-  code: 'MODULE_NOT_FOUND',
-  requireStack: [
-    '/Users/notsofit/Documents/Hackathon/agent-hq/frontend/.next/server/webpack-runtime.js',
-    '/Users/notsofit/Documents/Hackathon/agent-hq/frontend/.next/server/app/_not-found/page.js',
-    '/Users/notsofit/Documents/Hackathon/agent-hq/frontend/node_modules/next/dist/server/require.js',
-    '/Users/notsofit/Documents/Hackathon/agent-hq/frontend/node_modules/next/dist/server/load-components.js',
-    '/Users/notsofit/Documents/Hackathon/agent-hq/frontend/node_modules/next/dist/build/utils.js',
-    '/Users/notsofit/Documents/Hackathon/agent-hq/frontend/node_modules/next/dist/server/dev/hot-middleware.js',
-    '/Users/notsofit/Documents/Hackathon/agent-hq/frontend/node_modules/next/dist/server/dev/hot-reloader-webpack.js',
-    '/Users/notsofit/Documents/Hackathon/agent-hq/frontend/node_modules/next/dist/server/lib/router-utils/setup-dev-bundler.js',
-    '/Users/notsofit/Documents/Hackathon/agent-hq/frontend/node_modules/next/dist/server/lib/router-server.js',
-    '/Users/notsofit/Documents/Hackathon/agent-hq/frontend/node_modules/next/dist/server/lib/start-server.js'
-  ],
-  page: '/'
-}
- ○ Compiling /_error ...
- ✓ Compiled /_error in 533ms (2179 modules)
- GET / 500 in 690ms
- ✓ Compiled in 2.5s (2190 modules)
-<w> [webpack.cache.PackFileCacheStrategy] Caching failed for pack: Error: ENOENT: no such file or directory, rename '/Users/notsofit/Documents/Hackathon/agent-hq/frontend/.next/cache/webpack/client-development/0.pack.gz_' -> '/Users/notsofit/Documents/Hackathon/agent-hq/frontend/.next/cache/webpack/client-development/0.pack.gz'
+  - Local:        http://localhost:3000
+  - Environments: .env.local
+
+ ✓ Starting...
+ ✓ Ready in 1536ms
+ ○ Compiling / ...
+ ✓ Compiled /repos in 5.6s (1939 modules)
+ GET / 200 in 5961ms
+ GET /repos 200 in 64ms
+ ✓ Compiled /console in 495ms (1943 modules)
+ ○ Compiling /analytics ...
+ ✓ Compiled /analytics in 600ms (2053 modules)
+ ✓ Compiled /finops in 269ms (2069 modules)
+ ○ Compiling /pr-radar ...
+ ✓ Compiled /pr-radar in 1057ms (2089 modules)
+ ✓ Compiled /coverage in 423ms (2107 modules)
+ ✓ Compiled /repo-health in 313ms (2117 modules)
+ GET /repos 200 in 132ms
+ GET /repos 200 in 38ms
+ ○ Compiling /repos/[repoId]/prs ...
+ ✓ Compiled /repos/[repoId]/prs in 1311ms (2075 modules)
+ GET /pr-radar 200 in 136ms

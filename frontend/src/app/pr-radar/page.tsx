@@ -12,6 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { TestPreviewModal, type TestPreviewState } from "@/components/test-preview-modal";
+import { RepoSelector } from "@/components/repo-selector";
 
 import {
     GitPullRequest,
@@ -294,7 +295,20 @@ export default function PRRadarPage() {
                         Heuristic risk analysis + Claude deep reviews of open pull requests
                     </p>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-3">
+                    <RepoSelector
+                        selectedRepoId={repoId}
+                        onRepoChange={(id) => {
+                            setRepoId(id);
+                            // Refetch PRs when repo changes
+                            setLoading(true);
+                            fetch(`${API_BASE_URL}/control-plane/prs`)
+                                .then((r) => r.ok ? r.json() : [])
+                                .then(setPrs)
+                                .catch(() => { })
+                                .finally(() => setLoading(false));
+                        }}
+                    />
                     <span className="text-xs text-muted-foreground">Sort:</span>
                     <button
                         onClick={() => setSortMode(sortMode === "criticality" ? "time" : "criticality")}
@@ -324,10 +338,8 @@ export default function PRRadarPage() {
                 <div className="space-y-4">
                     {[...prs].sort((a, b) => {
                         if (sortMode === "criticality") return b.risk_score - a.risk_score;
-                        // sort by time — use review timestamp if available, otherwise keep original order
-                        const aTime = a.review?.reviewed_at ? new Date(a.review.reviewed_at).getTime() : 0;
-                        const bTime = b.review?.reviewed_at ? new Date(b.review.reviewed_at).getTime() : 0;
-                        return bTime - aTime;
+                        // sort by time — higher PR number = more recent
+                        return b.pr_number - a.pr_number;
                     }).map((pr) => {
                         const risk = RISK_CONFIG[pr.risk_level] ?? RISK_CONFIG.low;
                         const review = pr.review;

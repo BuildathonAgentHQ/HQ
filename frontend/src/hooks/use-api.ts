@@ -43,11 +43,6 @@ export async function createTask(data: TaskCreate): Promise<Task> {
     });
 }
 
-<<<<<<< Updated upstream
-export async function injectTaskPrompt(taskId: string, prompt: string): Promise<{ status: string }> {
-    const params = new URLSearchParams({ prompt });
-    return apiFetch<{ status: string }>(`/tasks/${taskId}/inject?${params}`, {
-=======
 export async function cancelTask(id: string): Promise<{ status: string }> {
     return apiFetch<{ status: string }>(`/tasks/${id}`, { method: "DELETE" });
 }
@@ -62,7 +57,6 @@ export async function resumeTask(id: string): Promise<{ status: string }> {
 
 export async function injectPrompt(id: string, prompt: string): Promise<{ status: string }> {
     return apiFetch<{ status: string }>(`/tasks/${id}/inject?prompt=${encodeURIComponent(prompt)}`, {
->>>>>>> Stashed changes
         method: "POST",
     });
 }
