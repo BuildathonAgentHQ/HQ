@@ -7,21 +7,227 @@
   - Environments: .env.local
 
  ✓ Starting...
- ✓ Ready in 1536ms
+ ✓ Ready in 2.6s
  ○ Compiling / ...
- ✓ Compiled /repos in 5.6s (1939 modules)
- GET / 200 in 5961ms
- GET /repos 200 in 64ms
- ✓ Compiled /console in 495ms (1943 modules)
+ ✓ Compiled / in 5.2s (1929 modules)
+ GET / 200 in 5601ms
+ GET / 200 in 39ms
+ ○ Compiling /console ...
+ ✓ Compiled /console in 653ms (1947 modules)
  ○ Compiling /analytics ...
- ✓ Compiled /analytics in 600ms (2053 modules)
- ✓ Compiled /finops in 269ms (2069 modules)
- ○ Compiling /pr-radar ...
- ✓ Compiled /pr-radar in 1057ms (2089 modules)
- ✓ Compiled /coverage in 423ms (2107 modules)
- ✓ Compiled /repo-health in 313ms (2117 modules)
- GET /repos 200 in 132ms
+ ✓ Compiled /analytics in 550ms (2043 modules)
+ ✓ Compiled /pr-radar in 362ms (2063 modules)
+ ✓ Compiled /coverage in 336ms (2083 modules)
+ ○ Compiling /repo-health ...
+ ✓ Compiled /repo-health in 964ms (2095 modules)
+ ✓ Compiled /repos in 280ms (2105 modules)
+ GET /repos 200 in 138ms
+ GET /pr-radar 200 in 55ms
  GET /repos 200 in 38ms
- ○ Compiling /repos/[repoId]/prs ...
- ✓ Compiled /repos/[repoId]/prs in 1311ms (2075 modules)
- GET /pr-radar 200 in 136ms
+ GET /pr-radar 200 in 31ms
+ GET /pr-radar 200 in 31ms
+ GET /pr-radar 200 in 31ms
+ GET /repos 200 in 33ms
+ GET /repos 200 in 34ms
+ GET /repos 200 in 31ms
+ GET /repos 200 in 31ms
+ GET /repos 200 in 29ms
+ GET /repos 200 in 28ms
+ GET /pr-radar 200 in 35ms
+ GET /repos 200 in 32ms
+ GET /pr-radar 200 in 30ms
+ GET /pr-radar 200 in 29ms
+ GET /pr-radar 200 in 31ms
+ GET /pr-radar 200 in 29ms
+   Reload env: .env.local
+ ✓ Compiled in 1893ms (2042 modules)
+ ✓ Compiled in 1385ms (2056 modules)
+ ✓ Compiled in 466ms (2056 modules)
+ ✓ Compiled in 620ms (2056 modules)
+ ✓ Compiled in 547ms (2056 modules)
+ ✓ Compiled in 363ms (2056 modules)
+ ✓ Compiled in 429ms (2056 modules)
+ ✓ Compiled in 573ms (2056 modules)
+ ⨯ ./src/app/console/page.tsx
+Error: 
+  [31mx[0m Expression expected
+     ,-[[36;1;4m/Users/notsofit/Documents/Hackathon/agent-hq/frontend/src/app/console/page.tsx[0m:431:1]
+ [2m431[0m |         </div>
+ [2m432[0m |     );
+ [2m433[0m | }
+ [2m434[0m | <div className="col-span-8 flex flex-col min-h-0 rounded-xl border border-border/30 bg-white/[0.02] overflow-hidden">
+     : [31;1m                                                                                                                    ^[0m
+ [2m435[0m |     {!selectedTask ? (
+ [2m436[0m |         <div className="flex-1 flex items-center justify-center">
+ [2m437[0m |             <div className="text-center space-y-3">
+     `----
+
+  [31mx[0m Unexpected token `!`. Expected identifier, string literal, numeric literal or [ for the computed key
+     ,-[[36;1;4m/Users/notsofit/Documents/Hackathon/agent-hq/frontend/src/app/console/page.tsx[0m:432:1]
+ [2m432[0m |     );
+ [2m433[0m | }
+ [2m434[0m | <div className="col-span-8 flex flex-col min-h-0 rounded-xl border border-border/30 bg-white/[0.02] overflow-hidden">
+ [2m435[0m |     {!selectedTask ? (
+     : [31;1m     ^[0m
+ [2m436[0m |         <div className="flex-1 flex items-center justify-center">
+ [2m437[0m |             <div className="text-center space-y-3">
+ [2m438[0m |                 <MessageSquare className="h-12 w-12 text-muted-foreground/20 mx-auto" />
+     `----
+
+Caused by:
+    Syntax Error
+
+Import trace for requested module:
+./src/app/console/page.tsx
+ ○ Compiling /_error ...
+ ⨯ ./src/app/console/page.tsx
+Error: 
+  [31mx[0m Expression expected
+     ,-[[36;1;4m/Users/notsofit/Documents/Hackathon/agent-hq/frontend/src/app/console/page.tsx[0m:431:1]
+ [2m431[0m |         </div>
+ [2m432[0m |     );
+ [2m433[0m | }
+ [2m434[0m | <div className="col-span-8 flex flex-col min-h-0 rounded-xl border border-border/30 bg-white/[0.02] overflow-hidden">
+     : [31;1m                                                                                                                    ^[0m
+ [2m435[0m |     {!selectedTask ? (
+ [2m436[0m |         <div className="flex-1 flex items-center justify-center">
+ [2m437[0m |             <div className="text-center space-y-3">
+     `----
+
+  [31mx[0m Unexpected token `!`. Expected identifier, string literal, numeric literal or [ for the computed key
+     ,-[[36;1;4m/Users/notsofit/Documents/Hackathon/agent-hq/frontend/src/app/console/page.tsx[0m:432:1]
+ [2m432[0m |     );
+ [2m433[0m | }
+ [2m434[0m | <div className="col-span-8 flex flex-col min-h-0 rounded-xl border border-border/30 bg-white/[0.02] overflow-hidden">
+ [2m435[0m |     {!selectedTask ? (
+     : [31;1m     ^[0m
+ [2m436[0m |         <div className="flex-1 flex items-center justify-center">
+ [2m437[0m |             <div className="text-center space-y-3">
+ [2m438[0m |                 <MessageSquare className="h-12 w-12 text-muted-foreground/20 mx-auto" />
+     `----
+
+Caused by:
+    Syntax Error
+
+Import trace for requested module:
+./src/app/console/page.tsx
+ GET /pr-radar 500 in 22ms
+ ⨯ ./src/app/console/page.tsx
+Error: 
+  [31mx[0m Expression expected
+     ,-[[36;1;4m/Users/notsofit/Documents/Hackathon/agent-hq/frontend/src/app/console/page.tsx[0m:433:1]
+ [2m433[0m | }
+ [2m434[0m | 
+ [2m435[0m | 
+ [2m436[0m |     ) : (
+     : [31;1m    ^[0m
+ [2m437[0m |     <>
+ [2m438[0m |         <div className="px-4 py-3 border-b border-border/20 shrink-0">
+ [2m439[0m |             <div className="flex items-center justify-between">
+     `----
+
+Caused by:
+    Syntax Error
+
+Import trace for requested module:
+./src/app/console/page.tsx
+ GET /_next/static/webpack/8b2a728c64c2d9e7.webpack.hot-update.json 500 in 1383ms
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ GET /pr-radar 500 in 16ms
+ GET /pr-radar 500 in 10ms
+ ⨯ ./src/app/console/page.tsx
+Error: 
+  [31mx[0m Expression expected
+     ,-[[36;1;4m/Users/notsofit/Documents/Hackathon/agent-hq/frontend/src/app/console/page.tsx[0m:433:1]
+ [2m433[0m | }
+ [2m434[0m | 
+ [2m435[0m | 
+ [2m436[0m |         <div className="px-4 py-3 border-b border-border/20 shrink-0">
+     : [31;1m                                                                     ^[0m
+ [2m437[0m |             <div className="flex items-center justify-between">
+ [2m438[0m |                 <div className="min-w-0">
+ [2m439[0m |                     <div className="flex items-center gap-2 mb-0.5">
+     `----
+
+  [31mx[0m Unterminated regexp literal
+     ,-[[36;1;4m/Users/notsofit/Documents/Hackathon/agent-hq/frontend/src/app/console/page.tsx[0m:483:1]
+ [2m483[0m |                     </Badge>
+ [2m484[0m |                 </div>
+ [2m485[0m |             </div>
+ [2m486[0m |         </div>
+     : [31;1m         ^^^^^[0m
+ [2m487[0m | 
+ [2m488[0m |         <div className="flex-1 overflow-y-auto px-4 py-3 space-y-2">
+ [2m489[0m |             {selectedMessages.length === 0 ? (
+     `----
+
+Caused by:
+    Syntax Error
+
+Import trace for requested module:
+./src/app/console/page.tsx
+ GET /_next/static/webpack/8b2a728c64c2d9e7.webpack.hot-update.json 500 in 715ms
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ GET /pr-radar 500 in 9ms
+ ⨯ ./src/app/console/page.tsx
+Error: 
+  [31mx[0m Expression expected
+     ,-[[36;1;4m/Users/notsofit/Documents/Hackathon/agent-hq/frontend/src/app/console/page.tsx[0m:432:1]
+ [2m432[0m |     );
+ [2m433[0m | }
+ [2m434[0m | 
+ [2m435[0m | <div className="flex items-center justify-between">
+     : [31;1m                                                  ^[0m
+ [2m436[0m |     <div className="min-w-0">
+ [2m437[0m |         <div className="flex items-center gap-2 mb-0.5">
+ [2m438[0m |             <div className={`p-1.5 rounded-lg ${STATUS_CONFIG[selectedTask.status]?.bg ?? "bg-slate-500/10"}`}>
+     `----
+
+  [31mx[0m Expected ';', '}' or <eof>
+     ,-[[36;1;4m/Users/notsofit/Documents/Hackathon/agent-hq/frontend/src/app/console/page.tsx[0m:432:1]
+ [2m432[0m |         );
+ [2m433[0m |     }
+ [2m434[0m |     
+ [2m435[0m | [31;1m,[0m[31;1m-[0m[31;1m>[0m <div className="flex items-center justify-between">
+ [2m436[0m | [31;1m|[0m       <div className="min-w-0">
+ [2m437[0m | [31;1m|[0m           <div className="flex items-center gap-2 mb-0.5">
+ [2m438[0m | [31;1m|[0m               <div className={`p-1.5 rounded-lg ${STATUS_CONFIG[selectedTask.status]?.bg ?? "bg-slate-500/10"}`}>
+ [2m439[0m | [31;1m|[0m                   <Cpu className={`h-4 w-4 ${STATUS_CONFIG[selectedTask.status]?.color ?? "text-slate-400"}`} />
+ [2m440[0m | [31;1m|[0m               </div>
+ [2m441[0m | [31;1m|[0m               <Badge variant="outline" className="text-[10px] border-indigo-500/30 text-indigo-300">
+ [2m442[0m | [31;1m|[0m                   {ENGINE_LABELS[selectedTask.engine] || selectedTask.engine}
+ [2m443[0m | [31;1m|[0m               </Badge>
+ [2m444[0m | [31;1m|[0m               <Badge variant="secondary" className="text-[10px] bg-white/5">
+ [2m445[0m | [31;1m|[0m                   {AGENT_LABELS[selectedTask.agent_type] || selectedTask.agent_type}
+ [2m446[0m | [31;1m|[0m               </Badge>
+ [2m447[0m | [31;1m|[0m           </div>
+ [2m448[0m | [31;1m|[0m           <p className="text-sm font-medium truncate max-w-[500px]">{selectedTask.task}</p>
+ [2m449[0m | [31;1m|[0m           <p className="text-[10px] text-muted-foreground mt-0.5">
+ [2m450[0m | [31;1m|[0m               Task ID: {selectedTask.id.slice(0, 8)} · {getElapsed(selectedTask.created_at)}
+ [2m451[0m | [31;1m|[0m           </p>
+ [2m452[0m | [31;1m|[0m       </div>
+ [2m453[0m | [31;1m|[0m[31;1m-[0m[31;1m>[0m     <div className="flex items-center gap-1.5">
+     : [31;1m`[0m[31;1m---[0m[33;1m         ^^^^^^^^^[0m
+     : [31;1m`[0m[31;1m---[0m[31;1m-[0m [31;1mThis is the expression part of an expression statement[0m
+ [2m454[0m |             {selectedTask.status === "running" && (
+ [2m455[0m |                 <>
+ [2m456[0m |                     <Button size="sm" variant="ghost" className="h-8 px-2.5 text-amber-400 hover:text-amber-300 hover:bg-amber-500/10"
+     `----
+
+Caused by:
+    Syntax Error
+
+Import trace for requested module:
+./src/app/console/page.tsx
+ GET /_next/static/webpack/8b2a728c64c2d9e7.webpack.hot-update.json 500 in 1062ms
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ GET /pr-radar 500 in 11ms
+ GET /pr-radar 500 in 9ms
+ ✓ Compiled /_not-found in 1429ms (2268 modules)
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ GET /_next/static/webpack/8b2a728c64c2d9e7.webpack.hot-update.json 404 in 1614ms
+ GET /pr-radar 200 in 114ms
+ GET /pr-radar 200 in 22ms
+ ✓ Compiled in 514ms (2282 modules)
+ ✓ Compiled in 448ms (1248 modules)
+[?25h

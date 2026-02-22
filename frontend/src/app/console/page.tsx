@@ -299,8 +299,8 @@ export default function ConsolePage() {
                             key={s}
                             onClick={() => setFilter(s)}
                             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${isActive
-                                    ? "bg-indigo-500/20 text-indigo-300 ring-1 ring-indigo-500/30"
-                                    : "bg-white/[0.03] text-muted-foreground hover:bg-white/[0.06] hover:text-white"
+                                ? "bg-indigo-500/20 text-indigo-300 ring-1 ring-indigo-500/30"
+                                : "bg-white/[0.03] text-muted-foreground hover:bg-white/[0.06] hover:text-white"
                                 }`}
                         >
                             <span className="capitalize">{s}</span>
@@ -314,237 +314,119 @@ export default function ConsolePage() {
                 })}
             </div>
 
-            <div className="flex-1 grid grid-cols-12 gap-4 min-h-0">
-                {/* Left: Agent list */}
-                <div className="col-span-4 flex flex-col min-h-0 rounded-xl border border-border/30 bg-white/[0.02] overflow-hidden">
-                    <div className="px-4 py-3 border-b border-border/20 shrink-0">
-                        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-2">
-                            <Bot className="h-3.5 w-3.5" />
-                            Agents & Tasks
+            <div className="flex-1 min-h-0 rounded-xl border border-border/30 bg-white/[0.02] overflow-y-auto">
+                <div className="px-4 py-3 border-b border-border/20 sticky top-0 bg-[#0B1120]/90 backdrop-blur-sm z-10">
+                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-2">
+                        <Bot className="h-3.5 w-3.5" />
+                        Agents & Tasks
+                    </p>
+                </div>
+                {!filteredTasks ? (
+                    <div className="p-4 space-y-3">
+                        {Array.from({ length: 5 }).map((_, i) => (
+                            <Skeleton key={i} className="h-28 w-full rounded-lg" />
+                        ))}
+                    </div>
+                ) : filteredTasks.length === 0 ? (
+                    <div className="flex items-center justify-center py-20">
+                        <p className="text-sm text-muted-foreground/60 text-center">
+                            {filter === "all"
+                                ? "No agents yet. Deploy from the Dashboard."
+                                : `No ${filter} agents`}
                         </p>
                     </div>
-                    <div className="flex-1 overflow-y-auto">
-                        {!filteredTasks ? (
-                            <div className="p-3 space-y-2">
-                                {Array.from({ length: 5 }).map((_, i) => (
-                                    <Skeleton key={i} className="h-24 w-full rounded-lg" />
-                                ))}
-                            </div>
-                        ) : filteredTasks.length === 0 ? (
-                            <div className="flex items-center justify-center h-full">
-                                <p className="text-sm text-muted-foreground/60 px-4 text-center">
-                                    {filter === "all"
-                                        ? "No agents yet. Deploy from the Dashboard."
-                                        : `No ${filter} agents`}
-                                </p>
-                            </div>
-                        ) : (
-                            <div className="p-2 space-y-1">
-                                {filteredTasks.map((task) => {
-                                    const cfg = STATUS_CONFIG[task.status] ?? STATUS_CONFIG.pending;
-                                    const isSelected = task.id === selectedTaskId;
-                                    const budgetRatio = task.budget_limit > 0 ? task.budget_used / task.budget_limit : 0;
+                ) : (
+                    <div className="p-3 space-y-2">
+                        {filteredTasks.map((task) => {
+                            const cfg = STATUS_CONFIG[task.status] ?? STATUS_CONFIG.pending;
+                            const budgetRatio = task.budget_limit > 0 ? task.budget_used / task.budget_limit : 0;
+                            const taskMsgs = chatMessages[task.id] || [];
+                            const lastMsg = taskMsgs.length > 0 ? taskMsgs[taskMsgs.length - 1] : null;
 
-                                    return (
-                                        <button
-                                            key={task.id}
-                                            onClick={() => setSelectedTaskId(task.id)}
-                                            className={`w-full text-left rounded-lg p-3 transition-all ${isSelected
-                                                    ? "bg-indigo-500/10 ring-1 ring-indigo-500/30 shadow-lg shadow-indigo-500/5"
-                                                    : "hover:bg-white/[0.04]"
-                                                }`}
-                                        >
-                                            <div className="flex items-start gap-2.5">
-                                                <span className={`mt-0.5 ${cfg.color}`}>{cfg.icon}</span>
-                                                <div className="flex-1 min-w-0">
-                                                    <div className="flex items-center gap-1.5 flex-wrap mb-1">
-                                                        <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-indigo-500/30 text-indigo-300">
-                                                            {ENGINE_LABELS[task.engine] || task.engine}
-                                                        </Badge>
-                                                        <Badge variant="secondary" className="text-[10px] px-1.5 py-0 bg-white/5">
-                                                            {AGENT_LABELS[task.agent_type] || task.agent_type}
-                                                        </Badge>
-                                                    </div>
-                                                    <p className="text-sm font-medium line-clamp-2 leading-snug text-white">
-                                                        {task.task}
-                                                    </p>
-                                                    <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
-                                                        <Badge variant="secondary" className={`text-[10px] px-1.5 py-0 ${cfg.bg} ${cfg.color}`}>
-                                                            {cfg.label}
-                                                        </Badge>
-                                                        <span className="text-[10px] text-muted-foreground flex items-center gap-0.5">
-                                                            <Clock className="h-2.5 w-2.5" />
-                                                            {getElapsed(task.created_at)}
-                                                        </span>
-                                                    </div>
-                                                    <div className="mt-2">
-                                                        <Progress
-                                                            value={Math.min(budgetRatio * 100, 100)}
-                                                            className="h-1"
-                                                            indicatorClassName={
-                                                                budgetRatio < 0.6 ? "bg-emerald-500" : budgetRatio < 0.85 ? "bg-amber-500" : "bg-red-500"
-                                                            }
-                                                        />
-                                                        <div className="flex justify-between mt-0.5 text-[9px] text-muted-foreground/50">
-                                                            <span>${task.budget_used.toFixed(2)}</span>
-                                                            <span>${task.budget_limit.toFixed(2)}</span>
-                                                        </div>
-                                                    </div>
+                            return (
+                                <div
+                                    key={task.id}
+                                    className="rounded-lg p-4 bg-white/[0.02] border border-border/20 hover:border-border/40 transition-all"
+                                >
+                                    <div className="flex items-start gap-3">
+                                        <span className={`mt-0.5 ${cfg.color}`}>{cfg.icon}</span>
+                                        <div className="flex-1 min-w-0">
+                                            <div className="flex items-center gap-1.5 flex-wrap mb-1">
+                                                <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-indigo-500/30 text-indigo-300">
+                                                    {ENGINE_LABELS[task.engine] || task.engine}
+                                                </Badge>
+                                                <Badge variant="secondary" className="text-[10px] px-1.5 py-0 bg-white/5">
+                                                    {AGENT_LABELS[task.agent_type] || task.agent_type}
+                                                </Badge>
+                                                <Badge variant="secondary" className={`text-[10px] px-1.5 py-0 ml-auto ${cfg.bg} ${cfg.color}`}>
+                                                    {cfg.label}
+                                                </Badge>
+                                            </div>
+                                            <p className="text-sm font-medium leading-snug text-white">
+                                                {task.task}
+                                            </p>
+                                            {lastMsg && (
+                                                <p className={`text-xs mt-1.5 ${lastMsg.severity === "error" ? "text-red-400" : "text-muted-foreground/70"}`}>
+                                                    <span className="text-[9px] uppercase tracking-wider font-medium opacity-60">{lastMsg.category}</span>{" "}
+                                                    {lastMsg.content}
+                                                </p>
+                                            )}
+                                            {task.status === "failed" && (task as unknown as { error?: string }).error && (
+                                                <p className="text-xs mt-1.5 text-red-400/80">
+                                                    Error: {(task as unknown as { error?: string }).error}
+                                                </p>
+                                            )}
+                                            <div className="flex items-center gap-3 mt-2">
+                                                <span className="text-[10px] text-muted-foreground flex items-center gap-0.5">
+                                                    <Clock className="h-2.5 w-2.5" />
+                                                    {getElapsed(task.created_at)}
+                                                </span>
+                                                <div className="flex-1 max-w-[200px]">
+                                                    <Progress
+                                                        value={Math.min(budgetRatio * 100, 100)}
+                                                        className="h-1"
+                                                        indicatorClassName={
+                                                            budgetRatio < 0.6 ? "bg-emerald-500" : budgetRatio < 0.85 ? "bg-amber-500" : "bg-red-500"
+                                                        }
+                                                    />
                                                 </div>
-                                                {isSelected && <ChevronRight className="h-4 w-4 text-indigo-400 mt-1 shrink-0" />}
+                                                <span className="text-[9px] text-muted-foreground/50">
+                                                    ${task.budget_used.toFixed(2)} / ${task.budget_limit.toFixed(2)}
+                                                </span>
+                                                <div className="ml-auto flex items-center gap-1">
+                                                    {task.status === "running" && (
+                                                        <>
+                                                            <Button size="sm" variant="ghost" className="h-7 px-2 text-amber-400 hover:text-amber-300 hover:bg-amber-500/10"
+                                                                onClick={() => handleAction("suspend", task.id)} title="Suspend">
+                                                                <PauseCircle className="h-3 w-3 mr-1" /><span className="text-[10px]">Suspend</span>
+                                                            </Button>
+                                                            <Button size="sm" variant="ghost" className="h-7 px-2 text-red-400 hover:text-red-300 hover:bg-red-500/10"
+                                                                onClick={() => handleAction("cancel", task.id)} title="Stop">
+                                                                <Square className="h-3 w-3 mr-1" /><span className="text-[10px]">Stop</span>
+                                                            </Button>
+                                                        </>
+                                                    )}
+                                                    {task.status === "suspended" && (
+                                                        <>
+                                                            <Button size="sm" variant="ghost" className="h-7 px-2 text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/10"
+                                                                onClick={() => handleAction("resume", task.id)} title="Resume">
+                                                                <Play className="h-3 w-3 mr-1" /><span className="text-[10px]">Resume</span>
+                                                            </Button>
+                                                            <Button size="sm" variant="ghost" className="h-7 px-2 text-red-400 hover:text-red-300 hover:bg-red-500/10"
+                                                                onClick={() => handleAction("cancel", task.id)} title="Stop">
+                                                                <Square className="h-3 w-3 mr-1" /><span className="text-[10px]">Stop</span>
+                                                            </Button>
+                                                        </>
+                                                    )}
+                                                </div>
                                             </div>
-                                        </button>
-                                    );
-                                })}
-                            </div>
-                        )}
-                    </div>
-                </div>
-
-                {/* Right: Chat & interaction panel */}
-                <div className="col-span-8 flex flex-col min-h-0 rounded-xl border border-border/30 bg-white/[0.02] overflow-hidden">
-                    {!selectedTask ? (
-                        <div className="flex-1 flex items-center justify-center">
-                            <div className="text-center space-y-3">
-                                <MessageSquare className="h-12 w-12 text-muted-foreground/20 mx-auto" />
-                                <p className="text-sm text-muted-foreground/60">Select an agent to start chatting</p>
-                            </div>
-                        </div>
-                    ) : (
-                        <>
-                            <div className="px-4 py-3 border-b border-border/20 shrink-0">
-                                <div className="flex items-center justify-between">
-                                    <div className="min-w-0">
-                                        <div className="flex items-center gap-2 mb-0.5">
-                                            <div className={`p-1.5 rounded-lg ${STATUS_CONFIG[selectedTask.status]?.bg ?? "bg-slate-500/10"}`}>
-                                                <Cpu className={`h-4 w-4 ${STATUS_CONFIG[selectedTask.status]?.color ?? "text-slate-400"}`} />
-                                            </div>
-                                            <Badge variant="outline" className="text-[10px] border-indigo-500/30 text-indigo-300">
-                                                {ENGINE_LABELS[selectedTask.engine] || selectedTask.engine}
-                                            </Badge>
-                                            <Badge variant="secondary" className="text-[10px] bg-white/5">
-                                                {AGENT_LABELS[selectedTask.agent_type] || selectedTask.agent_type}
-                                            </Badge>
                                         </div>
-                                        <p className="text-sm font-medium truncate max-w-[500px]">{selectedTask.task}</p>
-                                        <p className="text-[10px] text-muted-foreground mt-0.5">
-                                            Task ID: {selectedTask.id.slice(0, 8)} · {getElapsed(selectedTask.created_at)}
-                                        </p>
-                                    </div>
-                                    <div className="flex items-center gap-1.5">
-                                        {selectedTask.status === "running" && (
-                                            <>
-                                                <Button size="sm" variant="ghost" className="h-8 px-2.5 text-amber-400 hover:text-amber-300 hover:bg-amber-500/10"
-                                                    onClick={() => handleAction("suspend", selectedTask.id)} title="Suspend">
-                                                    <PauseCircle className="h-3.5 w-3.5 mr-1" /><span className="text-xs">Suspend</span>
-                                                </Button>
-                                                <Button size="sm" variant="ghost" className="h-8 px-2.5 text-red-400 hover:text-red-300 hover:bg-red-500/10"
-                                                    onClick={() => handleAction("cancel", selectedTask.id)} title="Stop">
-                                                    <Square className="h-3.5 w-3.5 mr-1" /><span className="text-xs">Stop</span>
-                                                </Button>
-                                            </>
-                                        )}
-                                        {selectedTask.status === "suspended" && (
-                                            <>
-                                                <Button size="sm" variant="ghost" className="h-8 px-2.5 text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/10"
-                                                    onClick={() => handleAction("resume", selectedTask.id)} title="Resume">
-                                                    <Play className="h-3.5 w-3.5 mr-1" /><span className="text-xs">Resume</span>
-                                                </Button>
-                                                <Button size="sm" variant="ghost" className="h-8 px-2.5 text-red-400 hover:text-red-300 hover:bg-red-500/10"
-                                                    onClick={() => handleAction("cancel", selectedTask.id)} title="Stop">
-                                                    <Square className="h-3.5 w-3.5 mr-1" /><span className="text-xs">Stop</span>
-                                                </Button>
-                                            </>
-                                        )}
-                                        <Badge variant="secondary" className={`text-[10px] ${STATUS_CONFIG[selectedTask.status]?.bg ?? ""} ${STATUS_CONFIG[selectedTask.status]?.color ?? ""}`}>
-                                            {STATUS_CONFIG[selectedTask.status]?.icon}
-                                            <span className="ml-1">{STATUS_CONFIG[selectedTask.status]?.label ?? selectedTask.status}</span>
-                                        </Badge>
                                     </div>
                                 </div>
-                            </div>
-
-                            <div className="flex-1 overflow-y-auto px-4 py-3 space-y-2">
-                                {selectedMessages.length === 0 ? (
-                                    <div className="flex items-center justify-center h-full">
-                                        <div className="text-center space-y-2">
-                                            <Terminal className="h-8 w-8 text-muted-foreground/20 mx-auto" />
-                                            <p className="text-xs text-muted-foreground/50">
-                                                {selectedTask.status === "running"
-                                                    ? "Waiting for agent output..."
-                                                    : selectedTask.status === "pending"
-                                                        ? "Agent hasn't started yet"
-                                                        : "No messages recorded"}
-                                            </p>
-                                        </div>
-                                    </div>
-                                ) : (
-                                    selectedMessages.map((msg) => (
-                                        <div key={msg.id} className={`flex ${msg.type === "user" ? "justify-end" : "justify-start"}`}>
-                                            <div
-                                                className={`max-w-[85%] rounded-lg px-3 py-2 ${msg.type === "user"
-                                                        ? "bg-indigo-600/20 border border-indigo-500/20 text-indigo-100"
-                                                        : msg.type === "system"
-                                                            ? "bg-white/[0.03] border border-border/20 text-muted-foreground"
-                                                            : msg.severity === "error"
-                                                                ? "bg-red-500/[0.07] border border-red-500/15"
-                                                                : msg.severity === "warning"
-                                                                    ? "bg-amber-500/[0.07] border border-amber-500/15"
-                                                                    : "bg-white/[0.03] border border-border/20"
-                                                    }`}
-                                            >
-                                                {msg.type !== "user" && msg.category && (
-                                                    <span className={`text-[9px] uppercase tracking-wider font-medium ${msg.severity === "error" ? "text-red-400/70" : msg.severity === "warning" ? "text-amber-400/70" : "text-muted-foreground/50"
-                                                        }`}>{msg.category}</span>
-                                                )}
-                                                <p className="text-sm leading-relaxed">{msg.content}</p>
-                                                <p className="text-[9px] text-muted-foreground/40 mt-1">{relativeTime(msg.timestamp)}</p>
-                                            </div>
-                                        </div>
-                                    ))
-                                )}
-                                <div ref={chatEndRef} />
-                            </div>
-
-                            <div className="px-4 py-3 border-t border-border/20 shrink-0">
-                                {selectedTask.status === "running" || selectedTask.status === "suspended" ? (
-                                    <div className="flex items-center gap-2">
-                                        <input
-                                            ref={inputRef}
-                                            value={chatInput}
-                                            onChange={(e) => setChatInput(e.target.value)}
-                                            onKeyDown={(e) => {
-                                                if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend(); }
-                                            }}
-                                            placeholder={selectedTask.status === "suspended" ? "Resume agent to send messages..." : "Send a message to this agent..."}
-                                            disabled={selectedTask.status === "suspended" || isSending}
-                                            className="flex-1 bg-white/[0.04] border border-border/30 rounded-lg px-4 py-2.5 text-sm placeholder:text-muted-foreground/40 focus:outline-none focus:ring-1 focus:ring-indigo-500/40 focus:border-indigo-500/40 disabled:opacity-50 transition-all"
-                                        />
-                                        <Button
-                                            onClick={handleSend}
-                                            disabled={!chatInput.trim() || selectedTask.status === "suspended" || isSending}
-                                            className="h-10 px-4 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white shadow-lg shadow-indigo-500/20 disabled:opacity-30 disabled:shadow-none"
-                                        >
-                                            <Send className="h-4 w-4" />
-                                        </Button>
-                                    </div>
-                                ) : (
-                                    <div className="flex items-center justify-center py-2 text-xs text-muted-foreground/50">
-                                        {selectedTask.status === "success" && (
-                                            <span className="flex items-center gap-1.5"><CheckCircle2 className="h-3.5 w-3.5 text-emerald-500/60" />Agent completed successfully</span>
-                                        )}
-                                        {selectedTask.status === "failed" && (
-                                            <span className="flex items-center gap-1.5"><XCircle className="h-3.5 w-3.5 text-red-500/60" />Agent failed — check logs above</span>
-                                        )}
-                                        {selectedTask.status === "pending" && (
-                                            <span className="flex items-center gap-1.5"><Clock className="h-3.5 w-3.5 text-slate-500/60" />Agent pending — waiting to start</span>
-                                        )}
-                                    </div>
-                                )}
-                            </div>
-                        </>
-                    )}
-                </div>
+                            );
+                        })}
+                    </div>
+                )}
             </div>
         </div>
     );

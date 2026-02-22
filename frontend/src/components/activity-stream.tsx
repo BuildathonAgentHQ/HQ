@@ -20,7 +20,6 @@ import {
     AlertCircle,
     Send,
     Clock,
-    Trash2,
     Bot,
     GitFork,
     Eye,
@@ -140,7 +139,7 @@ interface ActivityStreamProps {
 }
 
 export function ActivityStream({ events, sendMessage }: ActivityStreamProps) {
-    const [cleared, setCleared] = useState(0);
+    const cleared = 0;
     const [approvalReq, setApprovalReq] = useState<(ApprovalRequest & { task_id: string }) | null>(null);
     const [debateReq, setDebateReq] = useState<(DebateResult & { task_id: string }) | null>(null);
 
@@ -166,7 +165,6 @@ export function ActivityStream({ events, sendMessage }: ActivityStreamProps) {
         return { budget };
     }, [events, approvalReq, debateReq]);
 
-    const handleClear = () => setCleared(events.length);
 
     /* ── Empty state ──────────────────────────────────────────────── */
     if (visibleEvents.length === 0) {
@@ -233,14 +231,6 @@ export function ActivityStream({ events, sendMessage }: ActivityStreamProps) {
                         <Badge variant="secondary" className="ml-auto text-[10px]">
                             {visibleEvents.length} events
                         </Badge>
-                        <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-7 px-2 text-muted-foreground hover:text-white"
-                            onClick={handleClear}
-                        >
-                            <Trash2 className="h-3.5 w-3.5" />
-                        </Button>
                     </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-1 max-h-[500px] overflow-y-auto">

@@ -100,12 +100,20 @@ export default function DashboardPage() {
         }
     }, []);
 
-    useEffect(() => {
+    const refreshAll = useCallback(() => {
         refreshTasks();
-        apiFetch<Repository[]>("/repos").then(setRepos).catch(() => setRepos([]));
         apiFetch<PRReview[]>("/control-plane/reviews/recent").then(setReviews).catch(() => setReviews([]));
         apiFetch<SwarmPlan[]>("/swarm/plans/active").then(setSwarms).catch(() => setSwarms([]));
     }, [refreshTasks]);
+
+    useEffect(() => {
+        apiFetch<Repository[]>("/repos").then(setRepos).catch(() => setRepos([]));
+        refreshAll();
+        const id = setInterval(refreshAll, 10_000);
+        return () => clearInterval(id);
+    }, [refreshAll]);
+
+    const [dashTab, setDashTab] = useState<"activity" | "tasks">("activity");
 
     // Group events by task_id for TaskCards
     const eventsByTask = useMemo(() => {
@@ -271,7 +279,7 @@ export default function DashboardPage() {
                     <CardHeader className="pb-3">
                         <CardTitle className="flex items-center gap-2 text-base">
                             <Bot className="h-4 w-4 text-violet-400" />
-                            Active Swarms
+                            Active Swarm
                             {swarms && swarms.filter((s) => s.status === "executing").length > 0 && (
                                 <Badge className="ml-auto text-[10px] bg-violet-500/15 text-violet-400 animate-pulse">
                                     {swarms.filter((s) => s.status === "executing").length} running
@@ -295,57 +303,65 @@ export default function DashboardPage() {
                 </Card>
             </div>
 
-            {/* ── Main grid: Activity + Radar ────────────────────── */}
+            {/* ── Activity + Tasks (tabbed) + Health Radar ─────── */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 <div className="lg:col-span-2">
-                    <ActivityStream events={events} sendMessage={sendMessage} />
+                    <Card className="border-border/40 bg-card/60 backdrop-blur">
+                        <CardHeader className="pb-2">
+                            <CardTitle className="flex items-center gap-0 text-base">
+                                <div className="flex gap-1 rounded-lg bg-white/[0.04] p-0.5">
+                                    <button
+                                        onClick={() => setDashTab("activity")}
+                                        className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all ${dashTab === "activity"
+                                                ? "bg-indigo-500/20 text-indigo-300 shadow-sm"
+                                                : "text-muted-foreground hover:text-white"
+                                            }`}
+                                    >
+                                        Live Activity
+                                    </button>
+                                    <button
+                                        onClick={() => setDashTab("tasks")}
+                                        className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all ${dashTab === "tasks"
+                                                ? "bg-indigo-500/20 text-indigo-300 shadow-sm"
+                                                : "text-muted-foreground hover:text-white"
+                                            }`}
+                                    >
+                                        Active Tasks
+                                        {tasks && (
+                                            <span className="ml-1.5 text-[10px] opacity-60">{tasks.length}</span>
+                                        )}
+                                    </button>
+                                </div>
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            {dashTab === "activity" ? (
+                                <ActivityStream events={events} sendMessage={sendMessage} />
+                            ) : (
+                                <div className="space-y-2 max-h-[400px] overflow-y-auto">
+                                    {!tasks ? (
+                                        Array.from({ length: 3 }).map((_, i) => (
+                                            <Skeleton key={i} className="h-24 w-full" />
+                                        ))
+                                    ) : tasks.length === 0 ? (
+                                        <p className="text-sm text-muted-foreground/60 text-center py-6">
+                                            No tasks yet. Deploy your first agent above.
+                                        </p>
+                                    ) : (
+                                        tasks.map((t) => <TaskCard key={t.id} task={t} events={eventsByTask[t.id] ?? []} />)
+                                    )}
+                                </div>
+                            )}
+                        </CardContent>
+                    </Card>
                 </div>
                 <div>
                     <HealthRadar />
                 </div>
             </div>
 
-            {/* ── Task cards + Leaderboard ───────────────────────── */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {/* Active Tasks */}
-                <Card className="border-border/40 bg-card/60 backdrop-blur">
-                    <CardHeader>
-                        <CardTitle className="flex items-center gap-2 text-base">
-                            <Cpu className="h-4 w-4 text-violet-400" />
-                            Active Tasks
-                            {tasks && (
-                                <Badge variant="secondary" className="ml-auto text-[10px]">
-                                    {tasks.length}
-                                </Badge>
-                            )}
-                            <button
-                                onClick={refreshTasks}
-                                disabled={refreshingTasks}
-                                className="ml-1 p-1 rounded-md text-muted-foreground hover:text-white hover:bg-white/5 transition-colors disabled:opacity-50"
-                                title="Refresh tasks"
-                            >
-                                <RefreshCw className={`h-3.5 w-3.5 ${refreshingTasks ? "animate-spin" : ""}`} />
-                            </button>
-                        </CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-2 max-h-[400px] overflow-y-auto">
-                        {!tasks ? (
-                            Array.from({ length: 3 }).map((_, i) => (
-                                <Skeleton key={i} className="h-24 w-full" />
-                            ))
-                        ) : tasks.length === 0 ? (
-                            <p className="text-sm text-muted-foreground/60 text-center py-6">
-                                No tasks yet. Deploy your first agent above.
-                            </p>
-                        ) : (
-                            tasks.map((t) => <TaskCard key={t.id} task={t} events={eventsByTask[t.id] ?? []} />)
-                        )}
-                    </CardContent>
-                </Card>
-
-                {/* Leaderboard */}
-                <Leaderboard />
-            </div>
+            {/* ── Leaderboard ──────────────────────────────── */}
+            <Leaderboard />
 
 
         </div>

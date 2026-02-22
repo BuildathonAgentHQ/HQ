@@ -35,12 +35,21 @@ const AGENT_TYPES = [
     { value: "release_notes", label: "Release Notes" },
 ] as const;
 
+const MODELS = [
+    { value: "claude-sonnet-4", label: "Claude Sonnet 4" },
+    { value: "claude-opus-4", label: "Claude Opus 4" },
+    { value: "gpt-4o", label: "GPT-4o" },
+    { value: "gemini-2.5-pro", label: "Gemini 2.5 Pro" },
+] as const;
+
 export function CommandInput() {
     const [task, setTask] = useState("");
     const [engine, setEngine] = useState<TaskCreate["engine"]>("claude-code");
     const [agentType, setAgentType] =
         useState<TaskCreate["agent_type"]>("general");
     const [budget, setBudget] = useState(DEFAULT_BUDGET_LIMIT);
+    const [model, setModel] = useState("claude-sonnet-4");
+    const [autoTest, setAutoTest] = useState(true);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const { toast } = useToast();
 
@@ -50,8 +59,11 @@ export function CommandInput() {
         if (!canSubmit) return;
         setIsSubmitting(true);
         try {
+            const taskText = autoTest
+                ? `${task.trim()}\n\nAlso write comprehensive tests for this change.`
+                : task.trim();
             const payload: TaskCreate = {
-                task: task.trim(),
+                task: taskText,
                 engine: "claude-code", // Always use Claude Code regardless of dropdown selection
                 agent_type: agentType,
                 budget_limit: budget,
@@ -123,6 +135,23 @@ export function CommandInput() {
                         </SelectContent>
                     </Select>
 
+                    {/* Model selector */}
+                    <Select
+                        value={model}
+                        onValueChange={setModel}
+                    >
+                        <SelectTrigger className="w-[170px] bg-white/[0.04] border-white/10 text-sm">
+                            <SelectValue placeholder="Model" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            {MODELS.map((m) => (
+                                <SelectItem key={m.value} value={m.value}>
+                                    {m.label}
+                                </SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+
                     {/* Budget input */}
                     <div className="flex items-center gap-1.5">
                         <span className="text-xs text-muted-foreground">Budget $</span>
@@ -135,6 +164,17 @@ export function CommandInput() {
                             className="w-[80px] bg-white/[0.04] border-white/10 text-sm tabular-nums"
                         />
                     </div>
+
+                    {/* Auto-test checkbox */}
+                    <label className="flex items-center gap-2 cursor-pointer select-none">
+                        <input
+                            type="checkbox"
+                            checked={autoTest}
+                            onChange={(e) => setAutoTest(e.target.checked)}
+                            className="rounded border-white/20 bg-white/[0.04] text-indigo-500 focus:ring-indigo-500/40 h-4 w-4"
+                        />
+                        <span className="text-xs text-muted-foreground">Auto-generate tests</span>
+                    </label>
 
                     {/* Deploy button — pushed to the right */}
                     <Button

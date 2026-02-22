@@ -21,12 +21,12 @@ env:  ## Create .env from example if missing
 # ── Development ───────────────────────────────────────────────────────────────
 dev: env  ## Start backend + frontend concurrently
 	@echo "🚀 Starting Agent HQ (backend + frontend)…"
-	@PYTHONPATH=. uvicorn backend.app.main:app --reload --host 0.0.0.0 --port $${WS_PORT:-8000} & \
+	@PYTHONPATH=. uvicorn backend.app.main:app --reload --host 0.0.0.0 --port $${WS_PORT:-8001} & \
 	cd frontend && npm run dev; \
 	kill %1 2>/dev/null || true
 
 dev-backend: env  ## Start backend only
-	PYTHONPATH=. uvicorn backend.app.main:app --reload --host 0.0.0.0 --port $${WS_PORT:-8000}
+	PYTHONPATH=. uvicorn backend.app.main:app --reload --host 0.0.0.0 --port $${WS_PORT:-8001}
 
 dev-frontend:  ## Start frontend only
 	cd frontend && npm run dev

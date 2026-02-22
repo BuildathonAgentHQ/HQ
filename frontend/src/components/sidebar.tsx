@@ -25,11 +25,10 @@ const NAV_ITEMS = [
   { label: "Repositories", href: "/repos", icon: GitFork },
   { label: "Dashboard", href: "/", icon: LayoutDashboard },
   { label: "Agent Console", href: "/console", icon: Terminal },
-  { label: "Agent Analytics", href: "/analytics", icon: Zap },
+  { label: "Analytics", href: "/analytics", icon: Zap },
   { label: "PR Reviews", href: "/pr-radar", icon: GitPullRequest },
   { label: "Coverage Map", href: "/coverage", icon: Shield },
   { label: "Repo Health", href: "/repo-health", icon: HeartPulse },
-  { label: "FinOps", href: "/finops", icon: DollarSign },
 ] as const;
 
 interface RepoConfig {
@@ -67,7 +66,6 @@ export function Sidebar() {
           <h1 className="text-lg font-bold tracking-tight text-white">
             Agent HQ
           </h1>
-          <p className="text-[11px] text-muted-foreground">Command Centre</p>
         </div>
       </div>
 
