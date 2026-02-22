@@ -160,7 +160,9 @@ class KnowledgeBase:
         for doc_id, doc_info in self.documents.items():
             meta = doc_info["metadata"].copy()
             meta["id"] = doc_id
+            meta["doc_id"] = doc_id
             meta["filename"] = doc_info["filename"]
+            meta["uploaded_at"] = meta.get("upload_time", "")
             result.append(meta)
         return result
 
