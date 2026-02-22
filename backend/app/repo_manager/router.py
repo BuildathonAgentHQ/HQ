@@ -56,6 +56,30 @@ async def list_repos(request: Request) -> list[dict[str, Any]]:
     return [r.model_dump(mode="json") for r in repos]
 
 
+@router.get("/all-prs")
+async def list_all_open_prs(request: Request) -> list[dict[str, Any]]:
+    """List open PRs from all connected repositories."""
+    repo_manager = request.app.state.repo_manager
+    repos = await repo_manager.list_repos()
+    all_prs: list[dict[str, Any]] = []
+    for repo in repos:
+        try:
+            prs = await repo_manager.get_open_prs(repo.id)
+            for pr in prs:
+                all_prs.append({
+                    "repo_id": repo.id,
+                    "repo_full_name": repo.full_name,
+                    "number": pr.get("number"),
+                    "title": pr.get("title", ""),
+                    "author": (pr.get("user") or {}).get("login", "unknown"),
+                    "html_url": pr.get("html_url", ""),
+                    "created_at": pr.get("created_at"),
+                })
+        except Exception:
+            pass
+    return all_prs
+
+
 @router.get("/{repo_id}")
 async def get_repo(request: Request, repo_id: str) -> dict[str, Any]:
     """Get details of a specific connected repository."""
