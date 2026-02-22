@@ -85,6 +85,7 @@ class ProcessManager:
         self._translator = TranslationLayer(settings)
         self._token_tracker = TokenTracker(_telemetry)
         self.active_processes: dict[str, ManagedProcess] = {}
+        self.task_output_buffers: dict[str, list[str]] = {}  # task_id → output lines
         self.WORKSPACES_DIR.mkdir(parents=True, exist_ok=True)
         logger.info("ProcessManager initialised (translator=%s)",
                     "nemotron" if settings.USE_NEMOTRON else "templates")
@@ -207,6 +208,11 @@ class ProcessManager:
                     stream_type="stdout",
                     raw_content=text,
                 )
+
+                # ── Store raw output for later retrieval ───────────────
+                if task_id not in self.task_output_buffers:
+                    self.task_output_buffers[task_id] = []
+                self.task_output_buffers[task_id].append(text)
 
                 # ── Translate raw output → human-friendly event ────────
                 translated = await self._translator.translate(raw_event)
@@ -473,6 +479,14 @@ class ProcessManager:
                 ctx_parts.append(f"Requirements: {reqs}")
             if ctx_parts:
                 prompt = "\n".join(ctx_parts) + "\n\nTask: " + prompt
+
+        # Always append PR instructions so agents commit & raise PRs
+        pr_instruction = (
+            "\n\nIMPORTANT: After completing the task, commit all your changes, "
+            "push to a new branch (not main), and create a Pull Request with a "
+            "clear title and description of what was changed."
+        )
+        prompt = prompt + pr_instruction
 
         if task.engine == "claude-code":
             cmd = ["claude", "-p", prompt, "--dangerously-skip-permissions"]

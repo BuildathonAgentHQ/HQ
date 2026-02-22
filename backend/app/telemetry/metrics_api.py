@@ -292,3 +292,54 @@ async def export_csv() -> StreamingResponse:
         media_type="text/csv",
         headers={"Content-Disposition": "attachment; filename=agent_hq_telemetry.csv"},
     )
+
+@router.get("/analytics/logs/{task_id}")
+async def get_analytics_logs(task_id: str) -> dict[str, str]:
+    """Fetch the raw agent execution logs for a specific task from MLflow artifacts."""
+    logs = await _telemetry.get_task_output(task_id)
+    return {"logs": logs}
+
+@router.get("/analytics/tasks")
+async def get_historical_tasks() -> list[dict[str, Any]]:
+    """Return all historical tasks directly from Databricks."""
+    runs = _telemetry._search_all_runs()
+    df = _telemetry._runs_to_dataframe(runs) if runs else pd.DataFrame()
+    if df.empty:
+        return []
+    
+    task_col = "task_uuid" if "task_uuid" in df.columns else "task_id"
+    engine_col = "engine" if "engine" in df.columns else "tool"
+    cost_col = "total_cost" if "total_cost" in df.columns else "cumulative_cost"
+    duration_col = "total_duration_seconds"
+    tokens_col = "total_tokens" if "total_tokens" in df.columns else "token_count"
+    time_col = "start_time"
+    
+    if time_col in df.columns:
+        df = df.sort_values(by=time_col, ascending=False)
+        
+    tasks = []
+    for _, row in df.iterrows():
+        def safe_str(val): return str(val) if pd.notna(val) else ""
+        def safe_float(val): return float(val) if pd.notna(val) else 0.0
+        def safe_int(val): return int(float(val)) if pd.notna(val) else 0
+
+        # Attempt to map MLflow status back to our Task statuses 
+        # MLflow states: RUNNING, SCHEDULED, FINISHED, FAILED, KILLED
+        status = safe_str(row.get("status", "")).lower()
+        if status == "finished":
+            status = "success"
+
+        tasks.append({
+            "id": safe_str(row.get(task_col, "unknown")),
+            "task": safe_str(row.get("task_description", "Unknown Task")),
+            "engine": safe_str(row.get(engine_col, "unknown")),
+            "agent_type": safe_str(row.get("agent_type", "unknown")),
+            "status": status,
+            "budget_used": safe_float(row.get(cost_col, 0)),
+            "created_at": safe_str(row.get(time_col, "")),
+            "updated_at": safe_str(row.get("end_time", "")),
+            "token_count": safe_int(row.get(tokens_col, 0)),
+            "exit_code": safe_float(row.get("exit_code", 0)),
+            "duration": safe_float(row.get(duration_col, 0)),
+        })
+    return tasks

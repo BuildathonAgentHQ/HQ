@@ -32,6 +32,7 @@ export function useWebSocket(url: string): UseWebSocketReturn {
     const backoffRef = useRef(1_000);
     const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const mountedRef = useRef(true);
+    const seenKeysRef = useRef(new Set<string>());
 
     // ── connect ----------------------------------------------------------
     const connect = useCallback(() => {
@@ -51,6 +52,16 @@ export function useWebSocket(url: string): UseWebSocketReturn {
                 if (!mountedRef.current) return;
                 try {
                     const data = JSON.parse(event.data) as WebSocketEvent;
+                    // Deduplicate: build a key from task_id + event_type + payload status
+                    const payload = data.payload as Record<string, unknown> | undefined;
+                    const status = payload?.status ?? payload?.message ?? "";
+                    const key = `${data.task_id}:${data.event_type}:${status}`;
+                    if (seenKeysRef.current.has(key)) return;
+                    seenKeysRef.current.add(key);
+                    // Cap the seen-keys set size to prevent memory leaks
+                    if (seenKeysRef.current.size > 500) {
+                        seenKeysRef.current.clear();
+                    }
                     setEvents((prev) => [data, ...prev].slice(0, MAX_EVENTS));
                 } catch {
                     // silently ignore malformed messages

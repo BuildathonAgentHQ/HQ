@@ -240,6 +240,64 @@ class AgentTelemetry:
 
         logger.info("Ended tracking for task %s (run %s)", task.id, run_id)
 
+    async def log_task_output(self, task_id: str, log_text: str) -> None:
+        """Log full task textual output as an MLflow artifact."""
+        self._ensure_databricks()
+        run_id = self.active_runs.get(task_id)
+
+        # If run is somehow lost from active memory or this is called after tracking ends:
+        # We attempt to find it via API search
+        if not run_id:
+            runs = self._search_all_runs()
+            for r in runs:
+                if r.get("tags", {}).get("task_uuid") == task_id or r.get("tags", {}).get("task_id") == task_id:
+                    run_id = r.get("run_id")
+                    break
+
+        if not run_id:
+            logger.warning("log_task_output: no run_id found for task %s", task_id)
+            return
+
+        artifact_file = "agent_logs.txt"
+        
+        if self._use_databricks:
+            try:
+                self._client.log_text(run_id, log_text, artifact_file)
+            except Exception as e:
+                logger.warning("AgentTelemetry: failed to log text artifact for task %s: %s", task_id, e)
+        else:
+            self._client.log_text(log_text, artifact_file, run_id=run_id)
+
+    async def get_task_output(self, task_id: str) -> str:
+        """Retrieve the task log output from MLflow artifacts."""
+        self._ensure_databricks()
+        run_id = self.active_runs.get(task_id)
+        if not run_id:
+            runs = self._search_all_runs()
+            for r in runs:
+                if r.get("tags", {}).get("task_uuid") == task_id or r.get("tags", {}).get("task_id") == task_id:
+                    run_id = r.get("run_id")
+                    break
+
+        if not run_id:
+            return ""
+
+        artifact_file = "agent_logs.txt"
+
+        if self._use_databricks:
+            try:
+                # Real MLflow: download the artifact to a local tmp file, read, and return.
+                import os
+                local_path = self._client.download_artifacts(run_id, artifact_file)
+                if local_path and os.path.exists(local_path):
+                    with open(local_path, "r", encoding="utf-8") as f:
+                        return f.read()
+            except Exception:
+                return "Agent output not found or failed to fetch."
+            return ""
+        else:
+            return self._client.get_artifact_text(artifact_file, run_id=run_id) or ""
+
     # ── Analytics ────────────────────────────────────────────────────────
 
     async def get_radar_metrics(self, days: int = 30) -> TelemetryMetrics:

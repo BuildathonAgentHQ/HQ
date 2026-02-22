@@ -27,7 +27,7 @@ router = APIRouter()
 
 # ── Module-level singletons (created once at import time) ───────────────────
 task_manager = TaskManager(seed_mock=False)
-process_manager = ProcessManager(event_router=event_router, task_manager=task_manager)
+process_manager = ProcessManager(event_router=event_router)
 escalation_manager = EscalationManager(process_manager=process_manager, event_router=event_router)
 
 async def _on_guardrail_triggered(ws_event: WebSocketEvent) -> None:
@@ -67,6 +67,12 @@ async def _on_task_lifecycle(ws_event: WebSocketEvent) -> None:
         elif status in {"success", "failed"}:
             # Persist final status/exit code before closing the run
             updated = task_manager.update_task(task_id, status=status, exit_code=exit_code) or task
+            
+            # Upload the accumulated logs to MLflow
+            logs = process_manager.task_output_buffers.get(task_id, [])
+            log_text = "\n".join(logs) if logs else "No logs produced by agent."
+            await _telemetry.log_task_output(task_id, log_text)
+                
             await _telemetry.end_tracking(updated)
     except Exception:
         logger.exception("Telemetry lifecycle handler failed for task %s", task_id)
@@ -122,6 +128,19 @@ async def get_task(task_id: str) -> Task:
     if not task:
         raise HTTPException(status_code=404, detail=f"Task {task_id} not found")
     return task
+
+
+@router.get("/{task_id}/output")
+async def get_task_output(task_id: str) -> dict[str, str]:
+    """Get the accumulated stdout of a task.
+    
+    Used to preview generated code before approval.
+    """
+    if not task_manager.get_task(task_id):
+        raise HTTPException(status_code=404, detail=f"Task {task_id} not found")
+        
+    lines = process_manager.task_output_buffers.get(task_id, [])
+    return {"output": "\n".join(lines)}
 
 
 @router.delete("/{task_id}")
