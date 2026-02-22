@@ -13,6 +13,8 @@ import {
     GitPullRequest,
     FileCode,
     Loader2,
+    BarChart3,
+    Layers,
 } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -60,6 +62,9 @@ interface CoverageData {
     pr_features: PRFeature[];
     total_prs: number;
     prs_with_tests: number;
+    lines_covered?: number;
+    lines_total?: number;
+    line_coverage_pct?: number;
 }
 
 export default function CoveragePage() {
@@ -139,50 +144,83 @@ export default function CoveragePage() {
                     Coverage Map
                 </h1>
                 <p className="text-muted-foreground mt-2">
-                    Feature-level test coverage across all PRs (open &amp; closed).
+                    Line coverage and feature coverage across all PRs (open &amp; closed).
                 </p>
             </div>
 
-            {/* Top stat */}
-            <Card className="border-zinc-800 bg-zinc-900/50 flex flex-col items-center justify-center p-6">
-                <CardHeader className="text-center p-0 mb-2">
-                    <CardTitle className="text-lg font-medium text-zinc-400">
-                        Feature Coverage
-                    </CardTitle>
-                </CardHeader>
-                <CardContent className="p-0 text-center">
-                    <div
-                        className={`text-5xl font-black mb-1 ${
-                            (data?.total_coverage_pct ?? 0) > 70
-                                ? "text-green-500"
-                                : (data?.total_coverage_pct ?? 0) > 40
-                                ? "text-yellow-500"
-                                : "text-red-500"
-                        }`}
-                    >
-                        {testedFeatures}/{totalFeatures}
-                    </div>
-                    <p className="text-sm text-zinc-500 mb-2">Features with test coverage</p>
-                    <div className="flex items-center justify-center gap-2 text-zinc-400">
-                        {data?.trend === "improving" ? (
-                            <>
-                                <TrendingUp className="h-4 w-4 text-green-500" />
-                                <span className="text-green-500">Improving</span>
-                            </>
-                        ) : data?.trend === "declining" ? (
-                            <>
-                                <TrendingDown className="h-4 w-4 text-red-500" />
-                                <span className="text-red-500">Declining</span>
-                            </>
-                        ) : (
-                            <>
-                                <Minus className="h-4 w-4" />
-                                <span>Stable</span>
-                            </>
-                        )}
-                    </div>
-                </CardContent>
-            </Card>
+            {/* Coverage stats: Line + Feature */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Line coverage — lines of source code tested (Atlassian) */}
+                <Card className="border-zinc-800 bg-zinc-900/50 flex flex-col items-center justify-center p-6">
+                    <CardHeader className="text-center p-0 mb-2">
+                        <CardTitle className="text-lg font-medium text-zinc-400 flex items-center justify-center gap-2">
+                            <BarChart3 className="h-5 w-5 text-indigo-400" />
+                            Line Coverage
+                        </CardTitle>
+                    </CardHeader>
+                    <CardContent className="p-0 text-center">
+                        <div
+                            className={`text-5xl font-black mb-1 ${
+                                (data?.line_coverage_pct ?? 0) > 80
+                                    ? "text-green-500"
+                                    : (data?.line_coverage_pct ?? 0) > 70
+                                    ? "text-yellow-500"
+                                    : "text-red-500"
+                            }`}
+                        >
+                            {data?.line_coverage_pct ?? 0}%
+                        </div>
+                        <p className="text-sm text-zinc-500 mb-2">
+                            {data?.lines_covered ?? 0} / {data?.lines_total ?? 0} lines covered
+                        </p>
+                        <p className="text-xs text-zinc-600">
+                            Lines of source code exercised by tests
+                        </p>
+                    </CardContent>
+                </Card>
+
+                {/* Feature coverage — PRs with tests */}
+                <Card className="border-zinc-800 bg-zinc-900/50 flex flex-col items-center justify-center p-6">
+                    <CardHeader className="text-center p-0 mb-2">
+                        <CardTitle className="text-lg font-medium text-zinc-400 flex items-center justify-center gap-2">
+                            <Layers className="h-5 w-5 text-violet-400" />
+                            Feature Coverage
+                        </CardTitle>
+                    </CardHeader>
+                    <CardContent className="p-0 text-center">
+                        <div
+                            className={`text-5xl font-black mb-1 ${
+                                (data?.total_coverage_pct ?? 0) > 70
+                                    ? "text-green-500"
+                                    : (data?.total_coverage_pct ?? 0) > 40
+                                    ? "text-yellow-500"
+                                    : "text-red-500"
+                            }`}
+                        >
+                            {testedFeatures}/{totalFeatures}
+                        </div>
+                        <p className="text-sm text-zinc-500 mb-2">PRs with test coverage</p>
+                        <div className="flex items-center justify-center gap-2 text-zinc-400">
+                            {data?.trend === "improving" ? (
+                                <>
+                                    <TrendingUp className="h-4 w-4 text-green-500" />
+                                    <span className="text-green-500">Improving</span>
+                                </>
+                            ) : data?.trend === "declining" ? (
+                                <>
+                                    <TrendingDown className="h-4 w-4 text-red-500" />
+                                    <span className="text-red-500">Declining</span>
+                                </>
+                            ) : (
+                                <>
+                                    <Minus className="h-4 w-4" />
+                                    <span>Stable</span>
+                                </>
+                            )}
+                        </div>
+                    </CardContent>
+                </Card>
+            </div>
 
             {/* PR feature breakdown */}
             <Card className="border-zinc-800 bg-zinc-900/50">

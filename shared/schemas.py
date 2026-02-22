@@ -434,7 +434,8 @@ class CoverageReport(BaseModel):
     """
 
     total_coverage_pct: float = Field(
-        ..., ge=0, le=100, description="Overall line-coverage percentage."
+        ..., ge=0, le=100,
+        description="Feature coverage: PRs with tests / total PRs (%).",
     )
     module_coverage: dict[str, float] = Field(
         default_factory=dict,
@@ -456,6 +457,13 @@ class CoverageReport(BaseModel):
     prs_with_tests: int = Field(0, description="PRs that include test files.")
     total_repos: int = Field(0, description="Total connected repositories.")
     repos_with_tests: int = Field(0, description="Repos with at least 1 test file.")
+    # Line coverage (Atlassian: lines of source code tested)
+    lines_covered: int = Field(0, ge=0, description="Lines of source code covered by tests.")
+    lines_total: int = Field(0, ge=0, description="Total lines of source code in PR diffs.")
+    line_coverage_pct: float = Field(
+        0.0, ge=0, le=100,
+        description="Line coverage percentage: lines_covered / lines_total.",
+    )
 
 
 # ═══════════════════════════════════════════════════════════════════════════════

@@ -16,6 +16,7 @@ from shared.schemas import (
     CoverageReport,
     HotFile,
     NextBestAction,
+    PRFeatureCoverage,
     PRRiskFactors,
     PRRiskScore,
     RepoHealthReport,
@@ -310,6 +311,16 @@ SAMPLE_COVERAGE = CoverageReport(
         UntestableDiff(file_path="backend/app/control_plane/pr_analyzer.py", lines_uncovered=18, risk="medium — risk scoring"),
     ],
     trend="improving",
+    pr_features=[
+        PRFeatureCoverage(pr_number=101, title="feat: add OAuth2 [open]", author="alice", source_files=2, test_files=1, has_tests=True, coverage_status="covered"),
+        PRFeatureCoverage(pr_number=102, title="fix: SQL injection [open]", author="bob", source_files=1, test_files=1, has_tests=True, coverage_status="covered"),
+        PRFeatureCoverage(pr_number=103, title="chore: eslint config [open]", author="dependabot", source_files=2, test_files=0, has_tests=False, coverage_status="uncovered"),
+    ],
+    total_prs=3,
+    prs_with_tests=2,
+    lines_covered=420,
+    lines_total=560,
+    line_coverage_pct=75.0,
 )
 
 

@@ -83,11 +83,12 @@ class CoverageAnalyzer:
                 logger.warning("Failed to fetch files for PR #%s: %s", pr.get("number"), result)
                 continue
 
-            source_files, test_files = result
+            source_files, test_files, raw_files = result
             entry = {
                 "pr": pr,
                 "source_files": source_files,
                 "test_files": test_files,
+                "_raw_files": raw_files,
             }
             pr_data.append(entry)
 
@@ -99,11 +100,14 @@ class CoverageAnalyzer:
         module_coverage: dict[str, float] = {}
         total_features = 0
         tested_features = 0
+        lines_covered = 0
+        lines_total = 0
 
         for entry in pr_data:
             pr = entry["pr"]
             source_files: list[str] = entry["source_files"]
             test_files: list[str] = entry["test_files"]
+            raw_files: list[dict[str, Any]] = entry.get("_raw_files", [])
 
             is_feature = len(source_files) > 0
             if not is_feature:
@@ -122,6 +126,19 @@ class CoverageAnalyzer:
 
             if is_tested:
                 tested_features += 1
+
+            # Line coverage: sum additions per source file
+            for sf in source_files:
+                additions = 0
+                for f in raw_files:
+                    if f.get("filename") == sf:
+                        additions = max(f.get("additions", 0), 1)
+                        break
+                if additions == 0:
+                    additions = 1
+                lines_total += additions
+                if is_tested:
+                    lines_covered += additions
 
             if is_tested and has_own_tests:
                 status = "covered"
@@ -148,9 +165,9 @@ class CoverageAnalyzer:
             if not is_tested:
                 for sf in source_files:
                     additions = 0
-                    for f in entry.get("_raw_files", []):
+                    for f in raw_files:
                         if f.get("filename") == sf:
-                            additions = f.get("additions", 0)
+                            additions = max(f.get("additions", 0), 1)
                             break
                     if additions == 0:
                         additions = 1
@@ -171,6 +188,7 @@ class CoverageAnalyzer:
                     ))
 
         coverage_pct = round((tested_features / total_features) * 100, 1) if total_features else 0.0
+        line_coverage_pct = round((lines_covered / lines_total) * 100, 1) if lines_total else 0.0
 
         if coverage_pct > 70:
             trend = "improving"
@@ -187,18 +205,22 @@ class CoverageAnalyzer:
             pr_features=pr_features,
             total_prs=total_features,
             prs_with_tests=tested_features,
+            lines_covered=lines_covered,
+            lines_total=lines_total,
+            line_coverage_pct=line_coverage_pct,
         )
         self._cache = report
         logger.info(
-            "Coverage: %d/%d features tested (%.1f%%)",
+            "Coverage: %d/%d features (%.1f%%), %d/%d lines (%.1f%%)",
             tested_features, total_features, coverage_pct,
+            lines_covered, lines_total, line_coverage_pct,
         )
         return report
 
     async def _fetch_pr_files(
         self, pr: dict[str, Any]
-    ) -> tuple[list[str], list[str]]:
-        """Return (source_files, test_files) for a PR."""
+    ) -> tuple[list[str], list[str], list[dict[str, Any]]]:
+        """Return (source_files, test_files, raw_files) for a PR."""
         files = await self.github.get_pr_files(pr["number"])
         source: list[str] = []
         tests: list[str] = []
@@ -208,4 +230,4 @@ class CoverageAnalyzer:
                 tests.append(fname)
             elif _is_source_file(fname):
                 source.append(fname)
-        return source, tests
+        return source, tests, files
