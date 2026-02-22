@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 import { Sidebar } from "@/components/sidebar";
 import { Toaster } from "@/components/ui/toaster";
+import { Providers } from "@/components/providers";
 
 export const metadata: Metadata = {
     title: "Agent HQ — Command Centre",
@@ -23,16 +24,18 @@ export default function RootLayout({
                 />
             </head>
             <body className="min-h-screen antialiased">
-                <div className="flex min-h-screen">
-                    {/* ── Fixed sidebar ─────────────────────────────────────── */}
-                    <Sidebar />
+                <Providers>
+                    <div className="flex min-h-screen">
+                        {/* ── Fixed sidebar ─────────────────────────────────────── */}
+                        <Sidebar />
 
-                    {/* ── Main content ──────────────────────────────────────── */}
-                    <main className="flex-1 ml-64 overflow-y-auto">
-                        <div className="p-6 max-w-[1600px] mx-auto">{children}</div>
-                    </main>
-                </div>
-                <Toaster />
+                        {/* ── Main content ──────────────────────────────────────── */}
+                        <main className="flex-1 ml-64 overflow-y-auto">
+                            <div className="p-6 max-w-[1600px] mx-auto">{children}</div>
+                        </main>
+                    </div>
+                    <Toaster />
+                </Providers>
             </body>
         </html>
     );

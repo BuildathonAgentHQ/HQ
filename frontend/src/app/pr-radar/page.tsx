@@ -12,7 +12,9 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { TestPreviewModal, type TestPreviewState } from "@/components/test-preview-modal";
-import { RepoSelector } from "@/components/repo-selector";
+import { PageHeader } from "@/components/page-header";
+import { NoRepoState } from "@/components/no-repo-state";
+import { useRepo } from "@/context/repo-context";
 
 import {
     GitPullRequest,
@@ -31,7 +33,6 @@ import {
     Lock,
     Wrench,
     ArrowUpDown,
-    RefreshCw,
 } from "lucide-react";
 
 // ── API helpers ────────────────────────────────────────────────────────────
@@ -111,17 +112,13 @@ export default function PRRadarPage() {
     const [selectedPR, setSelectedPR] = useState<number | null>(null);
     const [repoId, setRepoId] = useState<string | null>(null);
     const [sortMode, setSortMode] = useState<"criticality" | "time">("criticality");
+    const { repos, selectedRepoId, loading: repoLoading } = useRepo();
 
     const fetchPRs = useCallback(async (bypassCache = false) => {
         setLoading(true);
         try {
-            // Fetch repos to get repo_id for swarm calls
-            const reposRes = await fetch(`${API_BASE_URL}/repos`);
-            if (reposRes.ok) {
-                const repos = await reposRes.json();
-                if (repos.length > 0) {
-                    setRepoId(repos[0].id);
-                }
+            if (selectedRepoId) {
+                setRepoId(selectedRepoId);
             }
             const url = `${API_BASE_URL}/control-plane/prs${bypassCache ? "?refresh=true" : ""}`;
             const res = await fetch(url);
@@ -134,11 +131,12 @@ export default function PRRadarPage() {
         } finally {
             setLoading(false);
         }
-    }, []);
+    }, [selectedRepoId]);
 
     useEffect(() => {
+        if (repos.length === 0) return;
         fetchPRs(true);
-    }, [fetchPRs]);
+    }, [fetchPRs, repos]);
 
     // Refetch when user returns to this browser tab
     useEffect(() => {
@@ -297,44 +295,39 @@ export default function PRRadarPage() {
 
     // ── Render ──────────────────────────────────────────────────────────
 
+    if (repoLoading) {
+        return (
+            <div className="space-y-6">
+                <div className="h-12 w-full bg-zinc-900/50 rounded-xl animate-pulse" />
+                <div className="h-64 w-full bg-zinc-900/50 rounded-xl animate-pulse" />
+            </div>
+        );
+    }
+
+    if (repos.length === 0) {
+        return <NoRepoState />;
+    }
+
     return (
         <div className="space-y-6">
             <div className="flex items-center justify-between">
-                <div>
-                    <h1 className="text-2xl font-bold tracking-tight flex items-center gap-3">
-                        <GitPullRequest className="h-7 w-7 text-indigo-500" />
-                        PR Reviews
-                    </h1>
-                    <p className="text-sm text-muted-foreground mt-1">
-                        Heuristic risk analysis + Claude deep reviews of open pull requests
-                    </p>
-                </div>
-                <div className="flex items-center gap-3">
-                    <RepoSelector
-                        selectedRepoId={repoId}
-                        onRepoChange={(id) => {
-                            setRepoId(id);
-                            fetchPRs(true);
-                        }}
-                    />
-                    <button
-                        onClick={() => fetchPRs(true)}
-                        disabled={loading}
-                        className="inline-flex items-center gap-1.5 rounded-lg border border-border/40 bg-card/60 px-3 py-1.5 text-xs font-medium text-slate-300 hover:bg-white/10 hover:text-white disabled:opacity-50 transition-colors"
-                        title="Reload PRs from GitHub"
-                    >
-                        <RefreshCw className={`h-3 w-3 ${loading ? "animate-spin" : ""}`} />
-                        Refresh
-                    </button>
-                    <span className="text-xs text-muted-foreground">Sort:</span>
-                    <button
-                        onClick={() => setSortMode(sortMode === "criticality" ? "time" : "criticality")}
-                        className="inline-flex items-center gap-1.5 rounded-lg border border-border/40 bg-card/60 px-3 py-1.5 text-xs font-medium text-slate-300 hover:bg-white/10 hover:text-white transition-colors"
-                    >
-                        <ArrowUpDown className="h-3 w-3" />
-                        {sortMode === "criticality" ? "Criticality" : "Recent"}
-                    </button>
-                </div>
+                <PageHeader
+                    icon={GitPullRequest}
+                    title="PR Reviews"
+                    description="Heuristic risk analysis + Claude deep reviews of open pull requests"
+                    onRefresh={() => fetchPRs(true)}
+                    refreshing={loading}
+                />
+            </div>
+            <div className="flex items-center gap-3">
+                <span className="text-xs text-muted-foreground">Sort:</span>
+                <button
+                    onClick={() => setSortMode(sortMode === "criticality" ? "time" : "criticality")}
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-border/40 bg-card/60 px-3 py-1.5 text-xs font-medium text-slate-300 hover:bg-white/10 hover:text-white transition-colors"
+                >
+                    <ArrowUpDown className="h-3 w-3" />
+                    {sortMode === "criticality" ? "Criticality" : "Recent"}
+                </button>
             </div>
 
             {loading ? (

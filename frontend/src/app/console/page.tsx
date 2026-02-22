@@ -10,7 +10,9 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
-import { RepoSelector } from "@/components/repo-selector";
+import { PageHeader } from "@/components/page-header";
+import { NoRepoState } from "@/components/no-repo-state";
+import { useRepo } from "@/context/repo-context";
 import { useToast } from "@/hooks/use-toast";
 import {
     Terminal,
@@ -92,7 +94,6 @@ export default function ConsolePage() {
     const [chatInput, setChatInput] = useState("");
     const [isSending, setIsSending] = useState(false);
     const [chatMessages, setChatMessages] = useState<Record<string, ChatMessage[]>>({});
-    const [selectedRepoId, setSelectedRepoId] = useState<string | null>(null);
     const chatEndRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLInputElement>(null);
     const { toast } = useToast();
@@ -259,36 +260,33 @@ export default function ConsolePage() {
         [toast]
     );
 
+    const { repos, loading: repoLoading } = useRepo();
     const activeCount = tasks?.filter((t) => t.status === "running" || t.status === "pending").length ?? 0;
+    const refreshTasks = useCallback(() => {
+        getTasks().then(setTasks).catch(() => { });
+    }, []);
+
+    if (repoLoading) {
+        return (
+            <div className="space-y-6">
+                <div className="h-12 w-full bg-zinc-900/50 rounded-xl animate-pulse" />
+                <div className="h-64 w-full bg-zinc-900/50 rounded-xl animate-pulse" />
+            </div>
+        );
+    }
+
+    if (repos.length === 0) {
+        return <NoRepoState />;
+    }
 
     return (
         <div className="h-[calc(100vh-48px)] flex flex-col gap-4">
-            <div className="flex items-center justify-between shrink-0">
-                <div>
-                    <h1 className="text-2xl font-bold tracking-tight flex items-center gap-3">
-                        <Terminal className="h-7 w-7 text-indigo-400" />
-                        Agent Console
-                    </h1>
-                    <p className="text-sm text-muted-foreground mt-1">
-                        Chat with and manage all active agents
-                    </p>
-                </div>
-                <div className="flex items-center gap-3">
-                    <RepoSelector
-                        selectedRepoId={selectedRepoId}
-                        onRepoChange={(id) => setSelectedRepoId(id)}
-                    />
-                    {activeCount > 0 && (
-                        <Badge className="bg-blue-500/15 text-blue-400 border-blue-500/30 animate-pulse">
-                            <Zap className="h-3 w-3 mr-1" />
-                            {activeCount} active
-                        </Badge>
-                    )}
-                    <Badge variant="secondary" className="text-xs">
-                        {tasks?.length ?? 0} total
-                    </Badge>
-                </div>
-            </div>
+            <PageHeader
+                icon={Terminal}
+                title="Agent Console"
+                description="Chat with and manage all active agents"
+                onRefresh={refreshTasks}
+            />
 
             <div className="flex gap-2 shrink-0">
                 {(["all", "running", "pending", "success", "failed", "suspended"] as StatusFilter[]).map((s) => {

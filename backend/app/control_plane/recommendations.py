@@ -31,7 +31,7 @@ class RecommendationEngine:
         self.coverage_analyzer = coverage_analyzer
         self.repo_health_analyzer = repo_health_analyzer
 
-    async def generate_recommendations(self) -> list[NextBestAction]:
+    async def generate_recommendations(self, repo_name: str) -> list[NextBestAction]:
         """Aggregate data and generate prioritized recommendations."""
         actions: list[NextBestAction] = []
 
@@ -39,7 +39,7 @@ class RecommendationEngine:
         # Here we just execute the analyzers.
         try:
             # A. From Coverage Analysis
-            coverage_report = await self.coverage_analyzer.analyze_coverage()
+            coverage_report = await self.coverage_analyzer.analyze_coverage(repo_name)
             
             for module, pct in coverage_report.module_coverage.items():
                 if pct < 50.0:
@@ -62,7 +62,7 @@ class RecommendationEngine:
                 ))
 
             # B. From PR Analysis
-            open_prs = await self.pr_analyzer.github.get_open_prs()
+            open_prs = await self.pr_analyzer.github.get_open_prs(repo_name)
             
             # Analyze each PR
             # For efficiency and to avoid giant rate limits, we analyze just recent ones
@@ -71,9 +71,9 @@ class RecommendationEngine:
                 if not pr_num:
                     continue
                     
-                files = await self.pr_analyzer.github.get_pr_files(pr_num)
+                files = await self.pr_analyzer.github.get_pr_files(repo_name, pr_num)
                 # dummy diff
-                risk_score = await self.pr_analyzer.analyze_pr(pr, files, "")
+                risk_score = await self.pr_analyzer.analyze_pr(pr, files, "", repo_name)
                 
                 if risk_score.risk_score > 75:
                     actions.append(NextBestAction(
@@ -84,7 +84,7 @@ class RecommendationEngine:
                         estimated_effort="~30 min (human review)"
                     ))
                     
-            dependencies = await self.pr_analyzer.detect_dependencies(open_prs)
+            dependencies = await self.pr_analyzer.detect_dependencies(open_prs, repo_name)
             for pr_num, conflicts in dependencies.items():
                 if conflicts:
                     joined_conflicts = ", #".join(map(str, conflicts))
@@ -97,7 +97,7 @@ class RecommendationEngine:
                     ))
 
             # C. From Repo Health
-            health_report = await self.repo_health_analyzer.analyze_health()
+            health_report = await self.repo_health_analyzer.analyze_health(repo_name)
             
             for flaky in health_report.flaky_tests:
                 actions.append(NextBestAction(

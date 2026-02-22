@@ -1,9 +1,12 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useCallback } from "react";
 import { format } from "date-fns";
 import { API_BASE_URL } from "@/lib/constants";
 import type { Task } from "@/lib/types";
+import { useRepo } from "@/context/repo-context";
+import { PageHeader } from "@/components/page-header";
+import { NoRepoState } from "@/components/no-repo-state";
 
 import {
   Card,
@@ -46,6 +49,7 @@ async function fetchTaskLogs(taskId: string): Promise<string> {
 }
 
 export default function AnalyticsDashboardPage() {
+  const { repos, loading: repoLoading } = useRepo();
   const [tasks, setTasks] = useState<Task[] | null>(null);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [taskLogs, setTaskLogs] = useState<string>("");
@@ -53,14 +57,28 @@ export default function AnalyticsDashboardPage() {
   const [loadingLogs, setLoadingLogs] = useState(false);
   const [finops, setFinops] = useState<{ today_spend: number; monthly_spend: number; avg_cost_per_task: number; projected_burn: number } | null>(null);
   const [showCount, setShowCount] = useState(5);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const loadData = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      const [tasksData] = await Promise.all([
+        fetchTasks().catch(() => [] as Task[]),
+      ]);
+      setTasks(tasksData);
+      fetch(`${API_BASE_URL}/finops`)
+        .then((r) => (r.ok ? r.json() : null))
+        .then((d) => d && setFinops(d))
+        .catch(() => { });
+    } finally {
+      setRefreshing(false);
+    }
+  }, []);
 
   useEffect(() => {
-    fetchTasks().then(setTasks).catch(() => setTasks([]));
-    fetch(`${API_BASE_URL}/finops`)
-      .then((r) => (r.ok ? r.json() : null))
-      .then((d) => d && setFinops(d))
-      .catch(() => { });
-  }, []);
+    if (repos.length === 0) return;
+    loadData();
+  }, [repos, loadData]);
 
   const openLogs = async (task: Task) => {
     setSelectedTask(task);
@@ -111,18 +129,29 @@ export default function AnalyticsDashboardPage() {
     return Math.round((success / tasks.length) * 100);
   }, [tasks]);
 
+  if (repoLoading) {
+    return (
+      <div className="space-y-6">
+        <div className="h-12 w-full bg-zinc-900/50 rounded-xl animate-pulse" />
+        <div className="h-64 w-full bg-zinc-900/50 rounded-xl animate-pulse" />
+      </div>
+    );
+  }
+
+  if (repos.length === 0) {
+    return <NoRepoState />;
+  }
+
   return (
     <div className="space-y-6">
       {/* ── Header ──────────────────────────────────────────── */}
-      <div>
-        <h2 className="text-2xl font-bold tracking-tight text-white flex items-center gap-2">
-          <Zap className="h-6 w-6 text-indigo-400" />
-          Analytics
-        </h2>
-        <p className="text-sm text-muted-foreground mt-1">
-          Agent insights, cost tracking & task outputs
-        </p>
-      </div>
+      <PageHeader
+        icon={Zap}
+        title="Analytics"
+        description="Agent insights, cost tracking & task outputs"
+        onRefresh={loadData}
+        refreshing={refreshing}
+      />
 
       {/* ── FinOps Cost Stats ──────────────────────────────── */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">

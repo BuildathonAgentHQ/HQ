@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import {
     HeartPulse,
     Activity,
@@ -23,6 +23,9 @@ import {
     SelectValue,
 } from "@/components/ui/select";
 import { API_BASE_URL } from "@/lib/constants";
+import { useRepo } from "@/context/repo-context";
+import { PageHeader } from "@/components/page-header";
+import { NoRepoState } from "@/components/no-repo-state";
 
 const ENGINES = [
     { value: "claude-code", label: "Claude Code" },
@@ -32,28 +35,34 @@ const ENGINES = [
 ] as const;
 
 export default function RepoHealthPage() {
+    const { repos, loading: repoLoading } = useRepo();
     const [healthData, setHealthData] = useState<any>(null);
     const [actionsData, setActionsData] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
+    const [refreshing, setRefreshing] = useState(false);
+
+    const fetchAll = useCallback(async () => {
+        setRefreshing(true);
+        try {
+            const [healthRes, actionsRes] = await Promise.all([
+                fetch(`${API_BASE_URL}/control-plane/health`),
+                fetch(`${API_BASE_URL}/control-plane/actions`)
+            ]);
+
+            if (healthRes.ok) setHealthData(await healthRes.json());
+            if (actionsRes.ok) setActionsData(await actionsRes.json());
+        } catch (e) {
+            console.error(e);
+        } finally {
+            setLoading(false);
+            setRefreshing(false);
+        }
+    }, []);
 
     useEffect(() => {
-        async function fetchAll() {
-            try {
-                const [healthRes, actionsRes] = await Promise.all([
-                    fetch(`${API_BASE_URL}/control-plane/health`),
-                    fetch(`${API_BASE_URL}/control-plane/actions`)
-                ]);
-
-                if (healthRes.ok) setHealthData(await healthRes.json());
-                if (actionsRes.ok) setActionsData(await actionsRes.json());
-            } catch (e) {
-                console.error(e);
-            } finally {
-                setLoading(false);
-            }
-        }
+        if (repos.length === 0) return;
         fetchAll();
-    }, []);
+    }, [repos, fetchAll]);
 
     const [dispatching, setDispatching] = useState<string | null>(null);
     const [dispatchResult, setDispatchResult] = useState<Record<string, any>>({});
@@ -117,9 +126,10 @@ export default function RepoHealthPage() {
         );
     };
 
-    if (loading) {
+    if (repoLoading || loading) {
         return (
             <div className="space-y-6 animate-pulse">
+                <div className="h-12 w-full bg-zinc-900/50 rounded-xl" />
                 <div className="h-40 w-full bg-zinc-900/50 rounded-xl" />
                 <div className="grid grid-cols-2 gap-6">
                     <div className="h-64 bg-zinc-900/50 rounded-xl" />
@@ -129,19 +139,19 @@ export default function RepoHealthPage() {
         );
     }
 
+    if (repos.length === 0) {
+        return <NoRepoState />;
+    }
+
     return (
         <div className="space-y-6 animate-in fade-in zoom-in duration-500">
-            <div className="flex justify-between items-end">
-                <div>
-                    <h1 className="text-3xl font-bold tracking-tight flex items-center gap-3">
-                        <HeartPulse className="h-8 w-8 text-rose-500" />
-                        Repository Health
-                    </h1>
-                    <p className="text-muted-foreground mt-2 inline-flex items-center gap-2">
-                        Continuous codebase telemetry. Current CI state: {renderCIStatus(healthData?.ci_status)}
-                    </p>
-                </div>
-            </div>
+            <PageHeader
+                icon={HeartPulse}
+                title="Repository Health"
+                description={`Continuous codebase telemetry. Current CI state: ${healthData?.ci_status ?? 'unknown'}`}
+                onRefresh={fetchAll}
+                refreshing={refreshing}
+            />
 
             <div className="grid gap-6 md:grid-cols-2">
                 {/* Next Best Actions (Recommendations) */}

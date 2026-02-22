@@ -85,6 +85,7 @@ class PRAnalyzer:
         pr_data: dict[str, Any],
         files: list[dict[str, Any]],
         diff: str,
+        repo_name: str,
         *,
         repo_id: Optional[str] = None,
     ) -> PRRiskScore:
@@ -95,6 +96,7 @@ class PRAnalyzer:
             pr_data: Raw PR dict from GitHub API.
             files:   List of file dicts from ``/pulls/{n}/files``.
             diff:    Full PR diff string (may be empty for faster scoring).
+            repo_name: Full repository name (e.g. owner/repo).
             repo_id: If provided, triggers an async Claude review.
 
         Returns:
@@ -145,7 +147,7 @@ class PRAnalyzer:
         # 4. Churn Score (20%)
         churn_risk = 0.0
         try:
-            await self.github.get_commit_history(count=100)
+            await self.github.get_commit_history(repo_name, count=100)
             churn_risk = 50.0 if core_files_changed else 10.0
         except Exception:
             churn_risk = 0.0
@@ -262,35 +264,32 @@ class PRAnalyzer:
 
     # ── Dependency & reviewer analysis (unchanged) ───────────────────────
 
-    async def detect_dependencies(
-        self, prs: list[dict[str, Any]]
-    ) -> dict[int, list[int]]:
-        """Detect cross-PR file conflicts.
-
-        Returns:
-            Dict mapping PR number → list of conflicting PR numbers.
-        """
-        pr_files_map: dict[int, set[str]] = {}
+    async def detect_dependencies(self, prs: list[dict[str, Any]], repo_name: str) -> dict[int, list[int]]:
+        """Identify missing PR dependency overlaps (e.g., both touch `config/db.json`)."""
+        pr_files: dict[int, set[str]] = {}
 
         for pr in prs:
             pr_num = pr.get("number")
-            if pr_num:
-                try:
-                    files = await self.github.get_pr_files(pr_num)
-                    pr_files_map[pr_num] = {f["filename"] for f in files}
-                except Exception:
-                    pr_files_map[pr_num] = set()
+            if not pr_num:
+                continue
+            try:
+                files = await self.github.get_pr_files(repo_name, pr_num)
+                pr_files[pr_num] = {f["filename"] for f in files}
+            except Exception:
+                pr_files[pr_num] = set()
 
         dependencies: dict[int, list[int]] = {
-            pr_num: [] for pr_num in pr_files_map
+            pr_num: [] for pr_num in pr_files
         }
 
-        pr_numbers = list(pr_files_map.keys())
-        for i, pr1 in enumerate(pr_numbers):
-            for pr2 in pr_numbers[i + 1 :]:
-                if pr_files_map[pr1].intersection(pr_files_map[pr2]):
-                    dependencies[pr1].append(pr2)
-                    dependencies[pr2].append(pr1)
+        pr_numbers = list(pr_files.keys())
+        for i, num1 in enumerate(pr_numbers):
+            files1 = pr_files[num1]
+            for num2 in pr_numbers[i + 1 :]:
+                files2 = pr_files[num2]
+                if files1.intersection(files2):
+                    dependencies[num1].append(num2)
+                    dependencies[num2].append(num1)
 
         return dependencies
 

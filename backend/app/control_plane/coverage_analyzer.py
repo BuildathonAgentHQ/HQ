@@ -64,15 +64,16 @@ class CoverageAnalyzer:
         self.settings = settings
         self._cache: CoverageReport | None = None
 
-    async def analyze_coverage(self) -> CoverageReport:
+    async def analyze_coverage(self, repo_name: str) -> CoverageReport:
         """Fetch ALL PRs → identify features → cross-match tests → report."""
-        if self._cache is not None:
+        cache_key = repo_name
+        if self._cache and getattr(self, "_last_repo", None) == repo_name:
             return self._cache
 
-        all_prs = await self.github.get_all_prs()
+        all_prs = await self.github.get_all_prs(repo_name)
         logger.info("Coverage: analysing %d PRs (open + closed)", len(all_prs))
 
-        pr_file_tasks = [self._fetch_pr_files(pr) for pr in all_prs]
+        pr_file_tasks = [self._fetch_pr_files(repo_name, pr) for pr in all_prs]
         pr_file_results = await asyncio.gather(*pr_file_tasks, return_exceptions=True)
 
         pr_data: list[dict[str, Any]] = []
@@ -210,6 +211,7 @@ class CoverageAnalyzer:
             line_coverage_pct=line_coverage_pct,
         )
         self._cache = report
+        self._last_repo = repo_name
         logger.info(
             "Coverage: %d/%d features (%.1f%%), %d/%d lines (%.1f%%)",
             tested_features, total_features, coverage_pct,
@@ -218,10 +220,10 @@ class CoverageAnalyzer:
         return report
 
     async def _fetch_pr_files(
-        self, pr: dict[str, Any]
+        self, repo_name: str, pr: dict[str, Any]
     ) -> tuple[list[str], list[str], list[dict[str, Any]]]:
         """Return (source_files, test_files, raw_files) for a PR."""
-        files = await self.github.get_pr_files(pr["number"])
+        files = await self.github.get_pr_files(repo_name, pr["number"])
         source: list[str] = []
         tests: list[str] = []
         for f in files:

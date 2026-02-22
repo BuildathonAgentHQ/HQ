@@ -12,19 +12,21 @@ import { HealthRadar } from "@/components/health-radar";
 import { TaskCard } from "@/components/task-card";
 import { Leaderboard } from "@/components/leaderboard";
 import { SwarmMonitor } from "@/components/swarm-monitor";
-import { RepoSelector } from "@/components/repo-selector";
+import { PageHeader } from "@/components/page-header";
+import { NoRepoState } from "@/components/no-repo-state";
+import { useRepo } from "@/context/repo-context";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
+    LayoutDashboard,
     Cpu,
     GitFork,
     Eye,
     Bot,
     ExternalLink,
     ArrowRight,
-    RefreshCw,
 } from "lucide-react";
 
 // ── API helpers ────────────────────────────────────────────────────────────
@@ -81,12 +83,12 @@ function timeAgo(iso: string | null): string {
 
 export default function DashboardPage() {
     const { events, isConnected, sendMessage } = useWebSocket(WS_URL);
+    const { repos: repoList, selectedRepoId, loading: repoLoading } = useRepo();
     const [tasks, setTasks] = useState<Task[] | null>(null);
     const [repos, setRepos] = useState<Repository[] | null>(null);
     const [reviews, setReviews] = useState<PRReview[] | null>(null);
     const [swarms, setSwarms] = useState<SwarmPlan[] | null>(null);
     const [refreshingTasks, setRefreshingTasks] = useState(false);
-    const [selectedRepoId, setSelectedRepoId] = useState<string | null>(null);
 
     const refreshTasks = useCallback(async () => {
         setRefreshingTasks(true);
@@ -107,11 +109,12 @@ export default function DashboardPage() {
     }, [refreshTasks]);
 
     useEffect(() => {
-        apiFetch<Repository[]>("/repos").then(setRepos).catch(() => setRepos([]));
+        if (repoList.length === 0) return;
+        setRepos(repoList);
         refreshAll();
         const id = setInterval(refreshAll, 10_000);
         return () => clearInterval(id);
-    }, [refreshAll]);
+    }, [refreshAll, repoList]);
 
     const [dashTab, setDashTab] = useState<"activity" | "tasks">("activity");
 
@@ -129,34 +132,29 @@ export default function DashboardPage() {
         return map;
     }, [events]);
 
+    if (repoLoading) {
+        return (
+            <div className="space-y-6">
+                <div className="h-12 w-full bg-zinc-900/50 rounded-xl animate-pulse" />
+                <div className="h-64 w-full bg-zinc-900/50 rounded-xl animate-pulse" />
+            </div>
+        );
+    }
+
+    if (repoList.length === 0) {
+        return <NoRepoState />;
+    }
+
     return (
         <div className="space-y-6">
             {/* ── Header ──────────────────────────────────────────── */}
-            <div className="flex items-center justify-between">
-                <div>
-                    <div className="flex items-center gap-3">
-                        <h2 className="text-2xl font-bold tracking-tight">Dashboard</h2>
-                        <RepoSelector
-                            selectedRepoId={selectedRepoId}
-                            onRepoChange={(id) => setSelectedRepoId(id)}
-                        />
-                    </div>
-                    <p className="text-sm text-muted-foreground">
-                        Monitor and deploy autonomous coding agents
-                    </p>
-                </div>
-                <div className="flex items-center gap-2 text-sm">
-                    <span
-                        className={`inline-block h-2 w-2 rounded-full ${isConnected
-                            ? "bg-emerald-500 shadow-[0_0_6px_theme(colors.emerald.500)]"
-                            : "bg-red-500 shadow-[0_0_6px_theme(colors.red.500)]"
-                            }`}
-                    />
-                    <span className="text-muted-foreground">
-                        {isConnected ? "Live" : "Connecting…"}
-                    </span>
-                </div>
-            </div>
+            <PageHeader
+                icon={LayoutDashboard}
+                title="Dashboard"
+                description="Monitor and deploy autonomous coding agents"
+                onRefresh={refreshAll}
+                refreshing={refreshingTasks}
+            />
 
             {/* ── Command Input ──────────────────────────────────── */}
             <CommandInput />
@@ -313,8 +311,8 @@ export default function DashboardPage() {
                                     <button
                                         onClick={() => setDashTab("activity")}
                                         className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all ${dashTab === "activity"
-                                                ? "bg-indigo-500/20 text-indigo-300 shadow-sm"
-                                                : "text-muted-foreground hover:text-white"
+                                            ? "bg-indigo-500/20 text-indigo-300 shadow-sm"
+                                            : "text-muted-foreground hover:text-white"
                                             }`}
                                     >
                                         Live Activity
@@ -322,8 +320,8 @@ export default function DashboardPage() {
                                     <button
                                         onClick={() => setDashTab("tasks")}
                                         className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all ${dashTab === "tasks"
-                                                ? "bg-indigo-500/20 text-indigo-300 shadow-sm"
-                                                : "text-muted-foreground hover:text-white"
+                                            ? "bg-indigo-500/20 text-indigo-300 shadow-sm"
+                                            : "text-muted-foreground hover:text-white"
                                             }`}
                                     >
                                         Active Tasks

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import {
     Shield,
     TrendingUp,
@@ -27,6 +27,9 @@ import {
     SelectValue,
 } from "@/components/ui/select";
 import { API_BASE_URL } from "@/lib/constants";
+import { useRepo } from "@/context/repo-context";
+import { PageHeader } from "@/components/page-header";
+import { NoRepoState } from "@/components/no-repo-state";
 
 const ENGINES = [
     { value: "claude-code", label: "Claude Code" },
@@ -68,29 +71,35 @@ interface CoverageData {
 }
 
 export default function CoveragePage() {
+    const { repos, loading: repoLoading } = useRepo();
     const [data, setData] = useState<CoverageData | null>(null);
     const [loading, setLoading] = useState(true);
     const [dispatching, setDispatching] = useState<string | null>(null);
     const [dispatchResult, setDispatchResult] = useState<Record<string, any>>({});
     const [selectedEngines, setSelectedEngines] = useState<Record<string, string>>({});
+    const [refreshing, setRefreshing] = useState(false);
 
     const getEngine = (key: string) => selectedEngines[key] ?? "claude-code";
 
-    useEffect(() => {
-        async function fetchData() {
-            try {
-                const res = await fetch(`${API_BASE_URL}/control-plane/coverage`);
-                if (res.ok) {
-                    setData(await res.json());
-                }
-            } catch (e) {
-                console.error(e);
-            } finally {
-                setLoading(false);
+    const fetchData = useCallback(async () => {
+        setRefreshing(true);
+        try {
+            const res = await fetch(`${API_BASE_URL}/control-plane/coverage`);
+            if (res.ok) {
+                setData(await res.json());
             }
+        } catch (e) {
+            console.error(e);
+        } finally {
+            setLoading(false);
+            setRefreshing(false);
         }
-        fetchData();
     }, []);
+
+    useEffect(() => {
+        if (repos.length === 0) return;
+        fetchData();
+    }, [repos, fetchData]);
 
     const generateTests = async (diff: UntestedDiff) => {
         const key = diff.file_path;
@@ -123,13 +132,18 @@ export default function CoveragePage() {
         }
     };
 
-    if (loading) {
+    if (repoLoading || loading) {
         return (
             <div className="space-y-6">
+                <div className="h-12 w-full bg-zinc-900/50 rounded-xl animate-pulse" />
                 <div className="h-32 w-full bg-zinc-900/50 rounded-xl animate-pulse" />
                 <div className="h-96 w-full bg-zinc-900/50 rounded-xl animate-pulse" />
             </div>
         );
+    }
+
+    if (repos.length === 0) {
+        return <NoRepoState />;
     }
 
     const testedFeatures = data?.prs_with_tests ?? 0;
@@ -138,15 +152,13 @@ export default function CoveragePage() {
 
     return (
         <div className="space-y-6 animate-in fade-in zoom-in duration-500">
-            <div>
-                <h1 className="text-3xl font-bold tracking-tight flex items-center gap-3">
-                    <Shield className="h-8 w-8 text-emerald-500" />
-                    Coverage Map
-                </h1>
-                <p className="text-muted-foreground mt-2">
-                    Line coverage and feature coverage across all PRs (open &amp; closed).
-                </p>
-            </div>
+            <PageHeader
+                icon={Shield}
+                title="Coverage Map"
+                description="Line coverage and feature coverage across all PRs (open & closed)."
+                onRefresh={fetchData}
+                refreshing={refreshing}
+            />
 
             {/* Coverage stats: Line + Feature */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -160,13 +172,12 @@ export default function CoveragePage() {
                     </CardHeader>
                     <CardContent className="p-0 text-center">
                         <div
-                            className={`text-5xl font-black mb-1 ${
-                                (data?.line_coverage_pct ?? 0) > 80
+                            className={`text-5xl font-black mb-1 ${(data?.line_coverage_pct ?? 0) > 80
                                     ? "text-green-500"
                                     : (data?.line_coverage_pct ?? 0) > 70
-                                    ? "text-yellow-500"
-                                    : "text-red-500"
-                            }`}
+                                        ? "text-yellow-500"
+                                        : "text-red-500"
+                                }`}
                         >
                             {data?.line_coverage_pct ?? 0}%
                         </div>
@@ -189,13 +200,12 @@ export default function CoveragePage() {
                     </CardHeader>
                     <CardContent className="p-0 text-center">
                         <div
-                            className={`text-5xl font-black mb-1 ${
-                                (data?.total_coverage_pct ?? 0) > 70
+                            className={`text-5xl font-black mb-1 ${(data?.total_coverage_pct ?? 0) > 70
                                     ? "text-green-500"
                                     : (data?.total_coverage_pct ?? 0) > 40
-                                    ? "text-yellow-500"
-                                    : "text-red-500"
-                            }`}
+                                        ? "text-yellow-500"
+                                        : "text-red-500"
+                                }`}
                         >
                             {testedFeatures}/{totalFeatures}
                         </div>
@@ -266,19 +276,18 @@ export default function CoveragePage() {
                                 </div>
                                 <Badge
                                     variant="outline"
-                                    className={`shrink-0 ml-4 ${
-                                        pr.coverage_status === "covered"
+                                    className={`shrink-0 ml-4 ${pr.coverage_status === "covered"
                                             ? "border-green-500/30 text-green-500 bg-green-500/10"
                                             : pr.coverage_status === "partial"
-                                            ? "border-yellow-500/30 text-yellow-500 bg-yellow-500/10"
-                                            : "border-red-500/30 text-red-500 bg-red-500/10"
-                                    }`}
+                                                ? "border-yellow-500/30 text-yellow-500 bg-yellow-500/10"
+                                                : "border-red-500/30 text-red-500 bg-red-500/10"
+                                        }`}
                                 >
                                     {pr.coverage_status === "covered"
                                         ? "Tests included"
                                         : pr.coverage_status === "partial"
-                                        ? "Partial tests"
-                                        : "No tests"}
+                                            ? "Partial tests"
+                                            : "No tests"}
                                 </Badge>
                             </div>
                         ))}

@@ -66,6 +66,8 @@ swarm_orchestrator = SwarmOrchestrator(
 #  Lifespan (startup / shutdown)
 # ═════════════════════════════════════════════════════════════════════════════
 
+# Default system fallback task ID if none exists
+DEFAULT_TASK_ID = "00000000-0000-0000-0000-000000000000"
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:

@@ -112,26 +112,26 @@ class GitHubConnector:
                 logger.error(f"Request failed: {e}")
                 raise
 
-    def invalidate_pr_cache(self) -> None:
+    def invalidate_pr_cache(self, repo_name: str) -> None:
         """Clear cached PR list so the next fetch returns fresh data from GitHub."""
-        url = f"{self.base_url}/repos/{self.owner_repo}/pulls?state=open"
+        url = f"{self.base_url}/repos/{repo_name}/pulls?state=open"
         if url in self.cache:
             del self.cache[url]
             logger.debug("Invalidated PR list cache")
 
-    async def get_open_prs(self, *, bypass_cache: bool = False) -> list[dict[str, Any]]:
+    async def get_open_prs(self, repo_name: str, *, bypass_cache: bool = False) -> list[dict[str, Any]]:
         if not self.use_github:
             return mock_github.get_sample_prs()
         if bypass_cache:
-            self.invalidate_pr_cache()
+            self.invalidate_pr_cache(repo_name)
         try:
-            path = f"/repos/{self.owner_repo}/pulls?state=open"
+            path = f"/repos/{repo_name}/pulls?state=open"
             return await self._request("GET", path)
         except Exception:
             logger.warning("get_open_prs: GitHub API failed; falling back to mock", exc_info=True)
             return mock_github.get_sample_prs()
 
-    async def get_all_prs(self, per_page: int = 100) -> list[dict[str, Any]]:
+    async def get_all_prs(self, repo_name: str, per_page: int = 100) -> list[dict[str, Any]]:
         """Fetch all PRs (open + closed + merged), paginated."""
         if not self.use_github:
             return mock_github.get_sample_prs()
@@ -139,7 +139,7 @@ class GitHubConnector:
             all_prs: list[dict[str, Any]] = []
             page = 1
             while True:
-                path = f"/repos/{self.owner_repo}/pulls?state=all&per_page={per_page}&page={page}"
+                path = f"/repos/{repo_name}/pulls?state=all&per_page={per_page}&page={page}"
                 batch = await self._request("GET", path)
                 if not batch:
                     break
@@ -152,44 +152,44 @@ class GitHubConnector:
             logger.warning("get_all_prs: GitHub API failed; falling back to mock", exc_info=True)
             return mock_github.get_sample_prs()
 
-    async def get_pr_diff(self, pr_number: int) -> str:
+    async def get_pr_diff(self, repo_name: str, pr_number: int) -> str:
         if not self.use_github:
             files = mock_github.get_sample_pr_files(pr_number)
             return "\n\n".join(f"diff --git a/{f['filename']} b/{f['filename']}\n{f.get('patch', '')}" for f in files)
         try:
-            path = f"/repos/{self.owner_repo}/pulls/{pr_number}"
+            path = f"/repos/{repo_name}/pulls/{pr_number}"
             return await self._request("GET", path, headers={"Accept": "application/vnd.github.v3.diff"})
         except Exception:
             logger.warning("get_pr_diff: GitHub API failed; falling back to mock", exc_info=True)
             files = mock_github.get_sample_pr_files(pr_number)
             return "\n\n".join(f"diff --git a/{f['filename']} b/{f['filename']}\n{f.get('patch', '')}" for f in files)
 
-    async def get_pr_files(self, pr_number: int) -> list[dict[str, Any]]:
+    async def get_pr_files(self, repo_name: str, pr_number: int) -> list[dict[str, Any]]:
         if not self.use_github:
             return mock_github.get_sample_pr_files(pr_number)
         try:
-            path = f"/repos/{self.owner_repo}/pulls/{pr_number}/files"
+            path = f"/repos/{repo_name}/pulls/{pr_number}/files"
             return await self._request("GET", path)
         except Exception:
             logger.warning("get_pr_files: GitHub API failed; falling back to mock", exc_info=True)
             return mock_github.get_sample_pr_files(pr_number)
 
-    async def get_commit_history(self, count: int = 50) -> list[dict[str, Any]]:
+    async def get_commit_history(self, repo_name: str, count: int = 50) -> list[dict[str, Any]]:
         if not self.use_github:
             return mock_github.get_sample_commits(count)
         try:
-            path = f"/repos/{self.owner_repo}/commits?per_page={count}"
+            path = f"/repos/{repo_name}/commits?per_page={count}"
             return await self._request("GET", path)
         except Exception:
             logger.warning("get_commit_history: GitHub API failed; falling back to mock", exc_info=True)
             return mock_github.get_sample_commits(count)
 
-    async def get_check_runs(self, ref: str) -> list[dict[str, Any]]:
+    async def get_check_runs(self, repo_name: str, ref: str) -> list[dict[str, Any]]:
         if not self.use_github:
             status = mock_github.get_sample_ci_status(ref)
             return status.get("statuses", [])
         try:
-            path = f"/repos/{self.owner_repo}/commits/{ref}/check-runs"
+            path = f"/repos/{repo_name}/commits/{ref}/check-runs"
             response = await self._request("GET", path)
             return response.get("check_runs", [])
         except Exception:
@@ -197,21 +197,21 @@ class GitHubConnector:
             status = mock_github.get_sample_ci_status(ref)
             return status.get("statuses", [])
 
-    async def create_pr(self, title: str, body: str, head: str, base: str = "main") -> dict[str, Any]:
+    async def create_pr(self, repo_name: str, title: str, body: str, head: str, base: str = "main") -> dict[str, Any]:
         if not self.use_github:
             return {
                 "number": 999, "title": title, "body": body,
-                "html_url": f"https://github.com/{self.owner_repo}/pull/999", "state": "open"
+                "html_url": f"https://github.com/{repo_name}/pull/999", "state": "open"
             }
         try:
-            path = f"/repos/{self.owner_repo}/pulls"
+            path = f"/repos/{repo_name}/pulls"
             payload = {"title": title, "body": body, "head": head, "base": base}
             return await self._request("POST", path, json=payload)
         except Exception:
             logger.warning("create_pr: GitHub API failed; returning mock", exc_info=True)
             return {
                 "number": 999, "title": title, "body": body,
-                "html_url": f"https://github.com/{self.owner_repo}/pull/999", "state": "open"
+                "html_url": f"https://github.com/{repo_name}/pull/999", "state": "open"
             }
 
     # ── New methods for swarm agents ─────────────────────────────────────

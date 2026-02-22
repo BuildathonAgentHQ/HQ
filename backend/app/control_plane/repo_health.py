@@ -23,14 +23,14 @@ class RepoHealthAnalyzer:
     def __init__(self, github: GitHubConnector):
         self.github = github
 
-    async def analyze_health(self) -> RepoHealthReport:
+    async def analyze_health(self, repo_name: str) -> RepoHealthReport:
         """
         Aggregate all repository health metrics into a single report.
         """
         # Fetch data needed for analysis
         commits = []
         try:
-            commits = await self.github.get_commit_history(count=50) # Get enough for both flaky tests and hot files
+            commits = await self.github.get_commit_history(repo_name, count=50) # Get enough for both flaky tests and hot files
         except Exception as e:
             logger.warning(f"Failed to fetch commit history for health analysis: {e}")
 
@@ -40,7 +40,7 @@ class RepoHealthAnalyzer:
             latest_sha = commits[0].get("sha")
             if latest_sha:
                 try:
-                    check_runs = await self.github.get_check_runs(latest_sha)
+                    check_runs = await self.github.get_check_runs(repo_name, latest_sha)
                     if isinstance(check_runs, dict) and check_runs.get("state"):
                         state = check_runs["state"]
                         if state in ("success", "passing"):
@@ -63,7 +63,7 @@ class RepoHealthAnalyzer:
         ]
 
         # 3. Hot Files
-        hot_files = await self._calculate_hot_files(commits)
+        hot_files = await self._calculate_hot_files(commits, repo_name)
 
         # 4. Tech Debt Items
         # Parse recently changed files for TODO/FIXME/HACK/XXX
@@ -76,7 +76,7 @@ class RepoHealthAnalyzer:
             tech_debt_items=tech_debt_items
         )
 
-    async def _calculate_hot_files(self, commits: list[dict[str, Any]]) -> list[HotFile]:
+    async def _calculate_hot_files(self, commits: list[dict[str, Any]], repo_name: str) -> list[HotFile]:
         """Calculate the top 10 most changed files in the last 30 days."""
         if not commits:
             return []
@@ -103,7 +103,7 @@ class RepoHealthAnalyzer:
                 sha = commit.get("sha")
                 if sha and self.github.use_github:
                     try:
-                        detail = await self.github._request("GET", f"/repos/{self.github.owner_repo}/commits/{sha}")
+                        detail = await self.github._request("GET", f"/repos/{repo_name}/commits/{sha}")
                         files_changed = detail.get("files", [])
                     except Exception:
                         continue
