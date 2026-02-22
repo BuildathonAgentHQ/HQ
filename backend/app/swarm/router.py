@@ -99,7 +99,8 @@ async def dispatch_agent(request: Request, body: DispatchAgentRequest) -> dict[s
 
     plan = await orchestrator.plan_fix(repo_id, [issue])
 
-    engine = body.engine or "claude-code"
+    # Always use claude-code regardless of client selection
+    engine = "claude-code"
 
     if plan.tasks:
         for t in plan.tasks:

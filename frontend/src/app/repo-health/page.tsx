@@ -74,7 +74,7 @@ export default function RepoHealthPage() {
                     action_type: action.action_type,
                     description: action.description,
                     target: action.target,
-                    engine: getEngine(key),
+                    engine: "claude-code", // Always use Claude Code regardless of dropdown
                 }),
             });
 

@@ -52,7 +52,7 @@ export function CommandInput() {
         try {
             const payload: TaskCreate = {
                 task: task.trim(),
-                engine,
+                engine: "claude-code", // Always use Claude Code regardless of dropdown selection
                 agent_type: agentType,
                 budget_limit: budget,
                 context_sources: [],
