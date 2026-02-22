@@ -36,6 +36,7 @@ class Settings(BaseSettings):
         env_file=str(_ENV_PATH) if _ENV_PATH.exists() else ".env",
         env_file_encoding="utf-8",
         case_sensitive=False,
+        extra="ignore",  # Ignore extra env vars instead of crashing
     )
 
     # ── API Keys ─────────────────────────────────────────────────────────
@@ -46,6 +47,10 @@ class Settings(BaseSettings):
     NIA_MCP_URL: str = "http://localhost:3001"
     GITHUB_TOKEN: str = ""
     GITHUB_REPO: str = ""
+    GITHUB_CLIENT_ID: str = ""
+    GITHUB_CLIENT_SECRET: str = ""
+    GITHUB_OAUTH_REDIRECT_URI: str = ""
+    GITHUB_OAUTH_SCOPES: str = ""
 
     # ── Databricks / MLflow ──────────────────────────────────────────────
     DATABRICKS_HOST: str = ""

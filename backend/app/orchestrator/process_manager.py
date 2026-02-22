@@ -19,7 +19,12 @@ from __future__ import annotations
 import asyncio
 import logging
 import os
-import pty
+import sys
+try:
+    import pty
+    HAS_PTY = True
+except ImportError:
+    HAS_PTY = False
 import shutil
 import signal
 import subprocess
@@ -133,30 +138,44 @@ class ProcessManager:
 
         # ── Start subprocess ────────────────────────────────────────────
         try:
-            process = subprocess.Popen(
-                cmd,
-                stdin=slave_fd,
-                stdout=slave_fd,
-                stderr=slave_fd,
-                close_fds=True,
-                start_new_session=True,
-                cwd=str(workspace_dir),
-                env=env,
-            )
+            if HAS_PTY:
+                master_fd, slave_fd = pty.openpty()
+                process = subprocess.Popen(
+                    cmd,
+                    stdin=slave_fd,
+                    stdout=slave_fd,
+                    stderr=slave_fd,
+                    close_fds=True,
+                    start_new_session=True,
+                    cwd=str(workspace_dir),
+                    env=env,
+                )
+                # Close slave in the parent — only the child uses it
+                os.close(slave_fd)
+            else:
+                creationflags = getattr(subprocess, 'CREATE_NEW_PROCESS_GROUP', 0)
+                process = subprocess.Popen(
+                    cmd,
+                    stdin=subprocess.PIPE,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.STDOUT,
+                    cwd=str(workspace_dir),
+                    env=env,
+                    creationflags=creationflags,
+                )
+                master_fd = process.stdout.fileno()
         except FileNotFoundError:
-            os.close(master_fd)
-            os.close(slave_fd)
+            if HAS_PTY:
+                os.close(master_fd)
+                os.close(slave_fd)
             logger.error("Engine binary not found: %s", cmd[0])
             raise
-
-        # Close slave in the parent — only the child uses it
-        os.close(slave_fd)
 
         managed = ManagedProcess(
             task_id=task.id,
             process=process,
             master_fd=master_fd,
-            slave_fd=-1,  # already closed in parent
+            slave_fd=-1,  # already closed or unused
         )
         self.active_processes[task.id] = managed
 
@@ -314,7 +333,8 @@ class ProcessManager:
             KeyError: If the task has no active process.
         """
         managed = self._get(task_id)
-        os.kill(managed.process.pid, signal.SIGSTOP)
+        if sys.platform != "win32":
+            os.kill(managed.process.pid, signal.SIGSTOP)
         await self._emit_lifecycle(task_id, "suspended")
         logger.info("Suspended task %s (pid %d)", task_id, managed.process.pid)
 
@@ -328,7 +348,8 @@ class ProcessManager:
             KeyError: If the task has no active process.
         """
         managed = self._get(task_id)
-        os.kill(managed.process.pid, signal.SIGCONT)
+        if sys.platform != "win32":
+            os.kill(managed.process.pid, signal.SIGCONT)
         await self._emit_lifecycle(task_id, "running")
         logger.info("Resumed task %s (pid %d)", task_id, managed.process.pid)
 
@@ -345,10 +366,16 @@ class ProcessManager:
         pid = managed.process.pid
         logger.info("Killing task %s (pid %d) — sending SIGTERM", task_id, pid)
 
-        try:
-            os.kill(pid, signal.SIGTERM)
-        except ProcessLookupError:
-            pass  # already dead
+        if sys.platform == "win32":
+            try:
+                managed.process.terminate()
+            except Exception:
+                pass
+        else:
+            try:
+                os.kill(pid, signal.SIGTERM)
+            except ProcessLookupError:
+                pass
 
         # Give it 5 seconds to die gracefully
         for _ in range(10):
@@ -358,10 +385,16 @@ class ProcessManager:
         else:
             # Still alive — force kill
             logger.warning("Task %s did not exit after SIGTERM — sending SIGKILL", task_id)
-            try:
-                os.kill(pid, signal.SIGKILL)
-            except ProcessLookupError:
-                pass
+            if sys.platform == "win32":
+                try:
+                    managed.process.kill()
+                except Exception:
+                    pass
+            else:
+                try:
+                    os.kill(pid, signal.SIGKILL)
+                except ProcessLookupError:
+                    pass
 
         await self._emit_lifecycle(task_id, "failed", managed.process.returncode)
         self._cleanup(task_id)
@@ -382,12 +415,16 @@ class ProcessManager:
             KeyError: If the task has no active process.
         """
         managed = self._get(task_id)
-        data = (prompt + "\n").encode("utf-8")
         try:
-            os.write(managed.master_fd, data)
-            logger.debug("Injected %d bytes into task %s", len(data), task_id)
+            if not HAS_PTY and managed.process.stdin:
+                managed.process.stdin.write((prompt + "\n").encode("utf-8"))
+                managed.process.stdin.flush()
+            else:
+                data = (prompt + "\n").encode("utf-8")
+                os.write(managed.master_fd, data)
+            logger.debug("Injected prompt into task %s", task_id)
         except OSError:
-            logger.error("Failed to inject prompt into task %s — PTY closed?", task_id)
+            logger.error("Failed to inject prompt into task %s — PTY/pipe closed?", task_id)
             raise
 
     # ── Internals ───────────────────────────────────────────────────────────
