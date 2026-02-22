@@ -63,22 +63,36 @@ function getBudgetColor(ratio: number): string {
     return "bg-red-500";
 }
 
+function formatAgentType(agentType: string): string {
+    return agentType
+        .split("_")
+        .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+        .join(" ");
+}
+
 interface TaskCardProps {
     task: Task;
     events?: Array<{ status: string; timestamp: string }>;
+    /** When provided, clicking the card calls this instead of toggling expand. */
+    onSelect?: (task: Task) => void;
 }
 
-export function TaskCard({ task, events = [] }: TaskCardProps) {
+export function TaskCard({ task, events = [], onSelect }: TaskCardProps) {
     const [expanded, setExpanded] = useState(false);
     const cfg = STATUS_CONFIG[task.status] ?? STATUS_CONFIG.pending;
     const budgetRatio =
         task.budget_limit > 0 ? task.budget_used / task.budget_limit : 0;
     const budgetPct = Math.min(budgetRatio * 100, 100);
 
+    const handleClick = () => {
+        if (onSelect) onSelect(task);
+        else setExpanded(!expanded);
+    };
+
     return (
         <Card
             className="border-border/30 bg-white/[0.03] backdrop-blur cursor-pointer transition-all hover:bg-white/[0.05] hover:border-border/50 animate-fade-in"
-            onClick={() => setExpanded(!expanded)}
+            onClick={handleClick}
         >
             <CardContent className="py-4 space-y-3">
                 {/* ── Top row ──────────────────────────────────────────── */}
@@ -98,6 +112,12 @@ export function TaskCard({ task, events = [] }: TaskCardProps) {
                                 className="text-[10px] px-1.5 py-0 border-border/40"
                             >
                                 {task.engine}
+                            </Badge>
+                            <Badge
+                                variant="outline"
+                                className="text-[10px] px-1.5 py-0 border-indigo-500/30 text-indigo-300"
+                            >
+                                {formatAgentType(task.agent_type)}
                             </Badge>
                             <span className="text-[10px] text-muted-foreground flex items-center gap-1">
                                 <Clock className="h-3 w-3" />

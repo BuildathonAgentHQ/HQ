@@ -201,10 +201,14 @@ export interface UntestableDiff {
 
 /** Aggregated test-coverage data for the repository. */
 export interface CoverageReport {
-    total_coverage_pct: number; // 0-100
+    total_coverage_pct: number; // 0-100 (feature coverage: PRs with tests / total PRs)
     module_coverage: Record<string, number>; // module name → coverage %
     untested_diffs: UntestableDiff[];
     trend: "improving" | "stable" | "declining";
+    /** Line coverage: lines of source code covered by tests. */
+    lines_covered?: number;
+    lines_total?: number;
+    line_coverage_pct?: number;
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════

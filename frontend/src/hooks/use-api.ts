@@ -43,6 +43,13 @@ export async function createTask(data: TaskCreate): Promise<Task> {
     });
 }
 
+export async function injectTaskPrompt(taskId: string, prompt: string): Promise<{ status: string }> {
+    const params = new URLSearchParams({ prompt });
+    return apiFetch<{ status: string }>(`/tasks/${taskId}/inject?${params}`, {
+        method: "POST",
+    });
+}
+
 // ── Metrics endpoints ──────────────────────────────────────────────────────
 
 export async function getRadarMetrics(): Promise<TelemetryMetrics> {
