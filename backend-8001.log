@@ -1,4 +1,4 @@
-2026-02-22 00:22:07,193 [INFO] numexpr.utils: NumExpr defaulting to 10 threads.
+2026-02-22 00:22:07,193 [INFO] numexpr.utils: NumExpr defaulting to 10 threads. 
 2026-02-22 00:22:07,450 [INFO] backend.app.telemetry.agent_telemetry: AgentTelemetry: MLflow enabled (lazy init) → databricks
 2026-02-22 00:22:07,463 [INFO] backend.app.orchestrator.task_manager: TaskManager initialised with 0 tasks (seed_mock=False)
 2026-02-22 00:22:07,513 [INFO] backend.app.translation.translator: TranslationLayer: Nemotron enabled → https://integrate.api.nvidia.com/v1/chat/completions (model nvidia/llama-3.1-nemotron-nano-8b-v1)
