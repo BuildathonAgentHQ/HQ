@@ -27,11 +27,7 @@ router = APIRouter()
 
 # ── Module-level singletons (created once at import time) ───────────────────
 task_manager = TaskManager(seed_mock=False)
-<<<<<<< HEAD
-process_manager = ProcessManager(event_router=event_router, task_manager=task_manager)
-=======
 process_manager = ProcessManager(event_router=event_router)
->>>>>>> 83af067 (Fixes)
 escalation_manager = EscalationManager(process_manager=process_manager, event_router=event_router)
 
 async def _on_guardrail_triggered(ws_event: WebSocketEvent) -> None:
