@@ -126,8 +126,8 @@ async function triggerAnalysis(repoId: string): Promise<void> {
     await apiFetch(`/repos/${repoId}/analyze`, { method: "POST" });
 }
 
-async function triggerAudit(repoId: string): Promise<void> {
-    await apiFetch("/swarm/plan", {
+async function triggerAudit(repoId: string) {
+    return apiFetch<{ plan: unknown; message?: string }>("/swarm/plan", {
         method: "POST",
         body: JSON.stringify({ repo_id: repoId, mode: "repo_audit" }),
     });
@@ -227,12 +227,32 @@ export default function ReposPage() {
     const handleAudit = (repo: Repository) =>
         withLoading(`audit-${repo.id}`, async () => {
             try {
-                await triggerAudit(repo.id);
-                toast({ title: "Audit started", description: `Auditing ${repo.full_name}…` });
-            } catch {
+                const res = await triggerAudit(repo.id);
+                if (res && typeof res === "object" && "plan" in res && res.plan === null) {
+                    toast({
+                        title: "Audit complete",
+                        description: (res as { message?: string }).message ?? "No issues found to fix.",
+                    });
+                } else {
+                    toast({ title: "Audit started", description: `Auditing ${repo.full_name}…` });
+                }
+            } catch (err: unknown) {
+                let description = "Could not start audit";
+                const msg = err instanceof Error ? err.message : String(err);
+                const jsonMatch = msg.match(/\{.*\}/);
+                if (jsonMatch) {
+                    try {
+                        const parsed = JSON.parse(jsonMatch[0]);
+                        if (parsed.detail) description = parsed.detail;
+                    } catch {
+                        if (msg.includes(":")) description = msg.split(": ").slice(1).join(": ").trim();
+                    }
+                } else if (msg.includes(":")) {
+                    description = msg.split(": ").slice(1).join(": ").trim();
+                }
                 toast({
                     title: "Audit failed",
-                    description: "Could not start audit",
+                    description,
                     variant: "destructive",
                 });
             }

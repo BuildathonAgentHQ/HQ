@@ -31,6 +31,7 @@ import {
     Lock,
     Wrench,
     ArrowUpDown,
+    RefreshCw,
 } from "lucide-react";
 
 // ── API helpers ────────────────────────────────────────────────────────────
@@ -111,7 +112,8 @@ export default function PRRadarPage() {
     const [repoId, setRepoId] = useState<string | null>(null);
     const [sortMode, setSortMode] = useState<"criticality" | "time">("criticality");
 
-    const fetchPRs = useCallback(async () => {
+    const fetchPRs = useCallback(async (bypassCache = false) => {
+        setLoading(true);
         try {
             // Fetch repos to get repo_id for swarm calls
             const reposRes = await fetch(`${API_BASE_URL}/repos`);
@@ -121,7 +123,8 @@ export default function PRRadarPage() {
                     setRepoId(repos[0].id);
                 }
             }
-            const res = await fetch(`${API_BASE_URL}/control-plane/prs`);
+            const url = `${API_BASE_URL}/control-plane/prs${bypassCache ? "?refresh=true" : ""}`;
+            const res = await fetch(url);
             if (res.ok) {
                 const data = await res.json();
                 setPrs(data);
@@ -134,7 +137,18 @@ export default function PRRadarPage() {
     }, []);
 
     useEffect(() => {
-        fetchPRs();
+        fetchPRs(true);
+    }, [fetchPRs]);
+
+    // Refetch when user returns to this browser tab
+    useEffect(() => {
+        const onVisibilityChange = () => {
+            if (document.visibilityState === "visible") {
+                fetchPRs(true);
+            }
+        };
+        document.addEventListener("visibilitychange", onVisibilityChange);
+        return () => document.removeEventListener("visibilitychange", onVisibilityChange);
     }, [fetchPRs]);
 
     // ── Actions ─────────────────────────────────────────────────────────
@@ -152,7 +166,7 @@ export default function PRRadarPage() {
             });
             toast({ title: "Review started", description: `Claude is analyzing PR #${prNumber}…` });
             // Refresh after a delay to get the review
-            setTimeout(fetchPRs, 5000);
+            setTimeout(() => fetchPRs(true), 5000);
         } catch {
             toast({ title: "Review failed", variant: "destructive" });
         } finally {
@@ -300,15 +314,18 @@ export default function PRRadarPage() {
                         selectedRepoId={repoId}
                         onRepoChange={(id) => {
                             setRepoId(id);
-                            // Refetch PRs when repo changes
-                            setLoading(true);
-                            fetch(`${API_BASE_URL}/control-plane/prs`)
-                                .then((r) => r.ok ? r.json() : [])
-                                .then(setPrs)
-                                .catch(() => { })
-                                .finally(() => setLoading(false));
+                            fetchPRs(true);
                         }}
                     />
+                    <button
+                        onClick={() => fetchPRs(true)}
+                        disabled={loading}
+                        className="inline-flex items-center gap-1.5 rounded-lg border border-border/40 bg-card/60 px-3 py-1.5 text-xs font-medium text-slate-300 hover:bg-white/10 hover:text-white disabled:opacity-50 transition-colors"
+                        title="Reload PRs from GitHub"
+                    >
+                        <RefreshCw className={`h-3 w-3 ${loading ? "animate-spin" : ""}`} />
+                        Refresh
+                    </button>
                     <span className="text-xs text-muted-foreground">Sort:</span>
                     <button
                         onClick={() => setSortMode(sortMode === "criticality" ? "time" : "criticality")}

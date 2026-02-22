@@ -38,13 +38,14 @@ recommendation_engine = RecommendationEngine(pr_analyzer, coverage_analyzer, hea
 
 
 @router.get("/prs", response_model=list[PRRiskScore])
-async def get_pr_scores() -> list[PRRiskScore]:
+async def get_pr_scores(refresh: bool = False) -> list[PRRiskScore]:
     """Return risk-scored pull requests.
 
     Sorted by risk_score descending so the riskiest PRs appear first.
+    Pass ?refresh=true to bypass cache and fetch fresh data from GitHub.
     """
     try:
-        open_prs = await github_connector.get_open_prs()
+        open_prs = await github_connector.get_open_prs(bypass_cache=refresh)
         scores: list[PRRiskScore] = []
         for pr in open_prs:
             pr_num = pr.get("number")

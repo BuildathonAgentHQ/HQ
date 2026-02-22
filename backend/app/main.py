@@ -90,6 +90,19 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     from backend.app.orchestrator.router import task_manager
     app.state.task_manager = task_manager
 
+    # ── Preload configured repo (if GITHUB_REPO set) ───────────────────────
+    if settings.GITHUB_REPO and "/" in settings.GITHUB_REPO:
+        try:
+            owner, name = settings.GITHUB_REPO.split("/", 1)
+            owner, name = owner.strip(), name.strip()
+            if owner and name:
+                full_name = f"{owner}/{name}"
+                if not any(r.full_name == full_name for r in repo_manager.repos.values()):
+                    await repo_manager.add_repo(owner, name)
+                    logger.info("Preloaded repo from GITHUB_REPO: %s", settings.GITHUB_REPO)
+        except Exception as exc:
+            logger.warning("Could not preload GITHUB_REPO %s: %s", settings.GITHUB_REPO, exc)
+
     # ── Health checks ────────────────────────────────────────────────────
     # Claude API
     claude_ok = False

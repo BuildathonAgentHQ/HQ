@@ -139,6 +139,17 @@ async def dispatch_agent(request: Request, body: DispatchAgentRequest) -> dict[s
 # ═════════════════════════════════════════════════════════════════════════════
 
 
+def _resolve_repo_id(repo_manager: RepoManager, repo_id: str) -> str:
+    """Resolve repo_id to a valid repo. Handles both UUID and owner/name format."""
+    if repo_id in repo_manager.repos:
+        return repo_id
+    # Try matching by full_name (owner/name) in case frontend sent that
+    for rid, repo in repo_manager.repos.items():
+        if repo.full_name == repo_id:
+            return rid
+    raise KeyError(f"Repository not found: {repo_id}")
+
+
 @router.post("/plan", response_model=dict[str, Any])
 async def create_plan(request: Request, body: CreatePlanRequest) -> dict[str, Any]:
     """Create an execution plan based on the selected mode.
@@ -150,46 +161,70 @@ async def create_plan(request: Request, body: CreatePlanRequest) -> dict[str, An
     """
     orchestrator = request.app.state.swarm_orchestrator
     analyzer = request.app.state.repo_analyzer
+    repo_manager = request.app.state.repo_manager
+
+    try:
+        resolved_repo_id = _resolve_repo_id(repo_manager, body.repo_id)
+    except KeyError as e:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Repository not found. Add the repository first on the Repositories page. ({e})",
+        ) from e
 
     issues: list[CodeIssue] = []
 
-    if body.mode == "pr_review":
-        if body.pr_number is None:
-            raise HTTPException(400, "pr_number is required for pr_review mode")
-        review = await analyzer.analyze_pr(body.repo_id, body.pr_number)
-        issues = review.issues
+    try:
+        if body.mode == "pr_review":
+            if body.pr_number is None:
+                raise HTTPException(400, "pr_number is required for pr_review mode")
+            review = await analyzer.analyze_pr(resolved_repo_id, body.pr_number)
+            issues = review.issues
 
-    elif body.mode == "repo_audit":
-        result = await analyzer.analyze_repo(body.repo_id)
-        # Collect issues stored by the analyzer
-        issues = [
-            i for i in analyzer.issues.values()
-            if i.repo_id == body.repo_id
-        ]
+        elif body.mode == "repo_audit":
+            result = await analyzer.analyze_repo(resolved_repo_id)
+            # Collect issues stored by the analyzer
+            issues = [
+                i for i in analyzer.issues.values()
+                if i.repo_id == resolved_repo_id
+            ]
 
-    elif body.mode == "fix_issues":
-        # Use existing issues already discovered
-        issues = [
-            i for i in analyzer.issues.values()
-            if i.repo_id == body.repo_id and i.status == "open"
-        ]
+        elif body.mode == "fix_issues":
+            # Use existing issues already discovered
+            issues = [
+                i for i in analyzer.issues.values()
+                if i.repo_id == resolved_repo_id and i.status == "open"
+            ]
 
-    if not issues:
+        if not issues:
+            return {
+                "plan": None,
+                "message": "No issues found to fix.",
+                "issues_count": 0,
+            }
+
+        plan = await orchestrator.plan_fix(
+            resolved_repo_id, issues, pr_number=body.pr_number
+        )
+
         return {
-            "plan": None,
-            "message": "No issues found to fix.",
-            "issues_count": 0,
+            "plan": plan.model_dump(mode="json"),
+            "issues_count": len(issues),
+            "message": f"Plan created with {len(plan.tasks)} tasks for {len(issues)} issues.",
         }
-
-    plan = await orchestrator.plan_fix(
-        body.repo_id, issues, pr_number=body.pr_number
-    )
-
-    return {
-        "plan": plan.model_dump(mode="json"),
-        "issues_count": len(issues),
-        "message": f"Plan created with {len(plan.tasks)} tasks for {len(issues)} issues.",
-    }
+    except HTTPException:
+        raise
+    except KeyError as e:
+        logger.exception("Repository lookup failed: %s", e)
+        raise HTTPException(
+            status_code=404,
+            detail=f"Repository not found: {e}",
+        ) from e
+    except Exception as e:
+        logger.exception("Plan creation failed: %s", e)
+        raise HTTPException(
+            status_code=502,
+            detail=f"Audit failed: {e}",
+        ) from e
 
 
 @router.get("/plans", response_model=list[dict[str, Any]])

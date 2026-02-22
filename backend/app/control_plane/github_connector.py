@@ -112,9 +112,18 @@ class GitHubConnector:
                 logger.error(f"Request failed: {e}")
                 raise
 
-    async def get_open_prs(self) -> list[dict[str, Any]]:
+    def invalidate_pr_cache(self) -> None:
+        """Clear cached PR list so the next fetch returns fresh data from GitHub."""
+        url = f"{self.base_url}/repos/{self.owner_repo}/pulls?state=open"
+        if url in self.cache:
+            del self.cache[url]
+            logger.debug("Invalidated PR list cache")
+
+    async def get_open_prs(self, *, bypass_cache: bool = False) -> list[dict[str, Any]]:
         if not self.use_github:
             return mock_github.get_sample_prs()
+        if bypass_cache:
+            self.invalidate_pr_cache()
         try:
             path = f"/repos/{self.owner_repo}/pulls?state=open"
             return await self._request("GET", path)
