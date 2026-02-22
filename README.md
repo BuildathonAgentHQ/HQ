@@ -2,7 +2,7 @@
 
 **AI-powered command center for orchestrating autonomous coding agents.**
 
-Agent HQ provides a unified dashboard to spawn, monitor, and govern coding agents across your projects — with real-time translation of agent output, budget enforcement, guardrails against destructive operations, and deep GitHub integration.
+Agent HQ is an AI-powered command center that replaces manual code review and bug-fixing workflows with an autonomous agent swarm. Developers connect any GitHub repository through a single dashboard and get instant, deep code analysis powered by the Claude API — every open PR is reviewed for bugs, security vulnerabilities, missing tests, and performance issues, with plain-English explanations instead of raw linter output. When issues are found, users click "Fix" and a coordinated swarm of six specialized AI agents (Reviewer, FixGenerator, TestWriter, SecurityAuditor, RefactorAgent, DocWriter) work in parallel to generate precise code fixes, write tests, and push a clean PR — all visible in real-time through a swarm monitor. The system includes a full safety layer: destructive command interception with human approval gates, a 3-strike escalation protocol that triggers multi-agent debate when fixes fail repeatedly, per-task budget enforcement with automatic suspension at cost thresholds, and real-time telemetry tracking every token spent. The backend is a Python/FastAPI service with WebSocket-driven live updates, the frontend is a Next.js dashboard with radar charts, PR risk heatmaps, coverage treemaps, and FinOps analytics, and the entire architecture gracefully degrades — every external dependency (Claude API, GitHub, Nemotron, MLflow) has a local fallback, so the demo works even if services go down.
 
 ---
 
