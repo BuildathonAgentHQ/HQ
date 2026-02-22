@@ -104,7 +104,7 @@ export default function CoveragePage() {
                     action_type: "add_tests",
                     description: `Write unit tests for ${diff.file_path} (${diff.lines_uncovered} untested lines from PR #${diff.pr_number}: ${diff.pr_title}).`,
                     target: diff.file_path,
-                    engine: getEngine(key),
+                    engine: "claude-code", // Always use Claude Code regardless of dropdown
                 }),
             });
             if (!res.ok) {

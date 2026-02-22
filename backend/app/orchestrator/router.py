@@ -90,6 +90,8 @@ event_router.register_handler(EventType.TASK_LIFECYCLE, _on_task_lifecycle)
 @router.post("/", response_model=Task)
 async def create_task(payload: TaskCreate) -> Task:
     """Create a new agent task and optionally spawn the agent process."""
+    # Always use claude-code regardless of client selection
+    payload.engine = "claude-code"
     task = task_manager.create_task(payload)
     logger.info("Task created: %s (engine=%s)", task.id, task.engine)
 
