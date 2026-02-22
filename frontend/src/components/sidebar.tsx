@@ -11,12 +11,11 @@ import {
   GitFork,
   Shield,
   HeartPulse,
-  DollarSign,
   Zap,
   Settings,
+  Book,
 } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
-import { KnowledgeSidebar } from "@/components/knowledge-sidebar";
 import { cn } from "@/lib/utils";
 import { useWebSocket } from "@/hooks/use-websocket";
 import { WS_URL, API_BASE_URL } from "@/lib/constants";
@@ -29,6 +28,7 @@ const NAV_ITEMS = [
   { label: "PR Reviews", href: "/pr-radar", icon: GitPullRequest },
   { label: "Coverage Map", href: "/coverage", icon: Shield },
   { label: "Repo Health", href: "/repo-health", icon: HeartPulse },
+  { label: "Knowledge Base", href: "/knowledge", icon: Book },
 ] as const;
 
 interface RepoConfig {
@@ -93,9 +93,6 @@ export function Sidebar() {
         })}
 
         <Separator className="opacity-10 my-2" />
-
-        {/* Knowledge Base — opens Sheet */}
-        <KnowledgeSidebar />
       </nav>
 
       {/* ── Footer ───────────────────────────────────────────── */}

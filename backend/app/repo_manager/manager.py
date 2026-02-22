@@ -414,6 +414,26 @@ class RepoManager:
 
     # ── PR listing ───────────────────────────────────────────────────────
 
+    async def get_all_prs(self, repo_id: str, per_page: int = 100) -> list[dict[str, Any]]:
+        """Fetch all PRs (open + closed + merged) for a connected repository."""
+        repo = await self.get_repo(repo_id)
+        all_prs: list[dict[str, Any]] = []
+        page = 1
+        while True:
+            path = f"/repos/{repo.full_name}/pulls?state=all&per_page={per_page}&page={page}"
+            try:
+                batch = await self.github._request("GET", path)
+            except Exception:
+                logger.warning("Failed to fetch PRs for %s", repo.full_name, exc_info=True)
+                return []
+            if not batch:
+                break
+            all_prs.extend(batch)
+            if len(batch) < per_page:
+                break
+            page += 1
+        return all_prs
+
     async def get_open_prs(self, repo_id: str) -> list[dict[str, Any]]:
         """List open PRs for a specific repository."""
         repo = await self.get_repo(repo_id)

@@ -11,7 +11,7 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from fastapi import APIRouter, File, HTTPException, UploadFile
+from fastapi import APIRouter, File, HTTPException, Request, UploadFile
 from pydantic import BaseModel, Field
 
 from backend.app.config import settings
@@ -88,5 +88,101 @@ async def search_knowledge(body: SearchQuery) -> dict[str, Any]:
         return {"results": results, "count": len(results)}
     except Exception as e:
         logger.error(f"Knowledge search failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+class ChatMessage(BaseModel):
+    """Request body for knowledge base chat."""
+
+    message: str = Field(..., description="User's question about the uploaded PDFs.")
+    top_k: int = Field(8, ge=1, le=20, description="Number of relevant chunks to use as context.")
+    repo_id: str | None = Field(None, description="Optional repo ID to include PR context. Uses first connected repo if omitted.")
+
+
+def _format_pr_summary(pr: dict) -> str:
+    """Format a PR into a concise text block for context."""
+    num = pr.get("number", "?")
+    title = pr.get("title", "")
+    state = pr.get("state", "unknown")
+    author = (pr.get("user") or {}).get("login", "unknown")
+    body = (pr.get("body") or "")[:800]
+    created = pr.get("created_at", "")
+    merged = pr.get("merged_at")
+    return (
+        f"PR #{num}: {title}\n"
+        f"  State: {state} | Author: {author} | Created: {created}"
+        + (f" | Merged: {merged}" if merged else "")
+        + f"\n  Description: {body}\n"
+    )
+
+
+@router.post("/chat")
+async def chat_with_documents(request: Request, body: ChatMessage) -> dict[str, Any]:
+    """Chat with the knowledge base. Answers questions using uploaded PDF content
+    and context from open/closed PRs of the linked repository.
+    """
+    try:
+        context_parts: list[str] = []
+
+        # 1. Search for relevant context from uploaded PDFs
+        chunks = await knowledge_base.search_knowledge(body.message, top_k=body.top_k)
+        if chunks:
+            context_parts.append(
+                "## Context from uploaded documents\n\n"
+                + "\n\n---\n\n".join(chunks[: body.top_k])
+            )
+
+        # 2. Add PR context from linked repo
+        repo_manager = request.app.state.repo_manager
+        repos = await repo_manager.list_repos()
+        repo_id = body.repo_id
+        if not repo_id and repos:
+            repo_id = repos[0].id
+        if repo_id and repos:
+            try:
+                all_prs = await repo_manager.get_all_prs(repo_id)
+                if all_prs:
+                    pr_summaries = [_format_pr_summary(pr) for pr in all_prs[:50]]
+                    context_parts.append(
+                        "## Pull requests (open and closed) from linked repository\n\n"
+                        + "\n".join(pr_summaries)
+                    )
+            except Exception as e:
+                logger.warning("Could not fetch PRs for chat context: %s", e)
+
+        if not context_parts:
+            return {
+                "response": (
+                    "No context available. Please upload PDFs and/or connect a repository "
+                    "on the Repositories page to enable questions about your documents and PRs."
+                ),
+                "sources_used": 0,
+            }
+
+        full_context = "\n\n".join(context_parts)
+        system_prompt = (
+            "You are a helpful assistant that answers questions based on the provided context. "
+            "The context may include: (1) excerpts from uploaded PDF documents, and (2) summaries "
+            "of pull requests (open and closed) from the linked GitHub repository. "
+            "Use the context below to answer the user's question. "
+            "If the context does not contain enough information, say so clearly. "
+            "Do not make up information. Keep answers concise and accurate.\n\n"
+            f"{full_context}"
+        )
+        user_message = body.message
+
+        claude = request.app.state.claude_client
+        result = await claude.complete(
+            system_prompt=system_prompt,
+            user_message=user_message,
+            max_tokens=2048,
+            temperature=0.2,
+        )
+        return {
+            "response": result.get("text", ""),
+            "sources_used": len(chunks) if chunks else 0,
+        }
+    except Exception as e:
+        logger.error(f"Knowledge chat failed: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
