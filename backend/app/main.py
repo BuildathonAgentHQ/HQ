@@ -131,7 +131,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     github_ok = False
     if settings.USE_GITHUB and settings.GITHUB_TOKEN:
         try:
-            prs = await github_connector.get_open_prs()
+            prs = await github_connector.get_open_prs(settings.GITHUB_REPO)
             github_ok = True
             logger.info(
                 "✅ GitHub API connected — repo=%s, open PRs=%d",

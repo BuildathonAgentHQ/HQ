@@ -6,6 +6,7 @@ import { useToast } from "@/hooks/use-toast";
 import { API_BASE_URL, WS_URL } from "@/lib/constants";
 import { useWebSocket } from "@/hooks/use-websocket";
 import type { PRRiskScore, PRReview, CodeIssue } from "@/lib/types";
+import { useApiData } from "@/hooks/use-api";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -104,57 +105,45 @@ export default function PRRadarPage() {
     const router = useRouter();
     const { toast } = useToast();
     const { events } = useWebSocket(WS_URL);
-    const [prs, setPrs] = useState<PRWithReview[]>([]);
-    const [loading, setLoading] = useState(true);
+    const { repos, selectedRepoId, loading: repoLoading } = useRepo();
+    const [sortMode, setSortMode] = useState<"criticality" | "time">("criticality");
     const [reviewing, setReviewing] = useState<Set<number>>(new Set());
     const [fixing, setFixing] = useState<Set<number>>(new Set());
     const [testPreview, setTestPreview] = useState<TestPreviewState>({ status: "idle", prNumber: null, taskId: null, code: null });
     const [selectedPR, setSelectedPR] = useState<number | null>(null);
-    const [repoId, setRepoId] = useState<string | null>(null);
-    const [sortMode, setSortMode] = useState<"criticality" | "time">("criticality");
-    const { repos, selectedRepoId, loading: repoLoading } = useRepo();
+
+    const { data: prsData, isLoading: prsLoading, mutate } = useApiData<PRWithReview[]>(
+        selectedRepoId ? `/control-plane/prs?repo_id=${selectedRepoId}` : null
+    );
+    const prs = prsData || [];
+
+    // Local loading state just for the explicit refresh button
+    const [refreshing, setRefreshing] = useState(false);
 
     const fetchPRs = useCallback(async (bypassCache = false) => {
         if (!selectedRepoId) return;
-        setLoading(true);
-        try {
-            setRepoId(selectedRepoId);
-            const query = new URLSearchParams({ repo_id: selectedRepoId });
-            if (bypassCache) query.append("refresh", "true");
-
-            const url = `${API_BASE_URL}/control-plane/prs?${query.toString()}`;
-            const res = await fetch(url);
-            if (res.ok) {
-                const data = await res.json();
-                setPrs(data);
+        if (bypassCache) {
+            setRefreshing(true);
+            try {
+                const res = await fetch(`${API_BASE_URL}/control-plane/prs?repo_id=${selectedRepoId}&refresh=true`);
+                if (res.ok) {
+                    const data = await res.json();
+                    mutate(data, { revalidate: false });
+                }
+            } catch {
+                // pass
+            } finally {
+                setRefreshing(false);
             }
-        } catch {
-            // pass
-        } finally {
-            setLoading(false);
+        } else {
+            mutate();
         }
-    }, [selectedRepoId]);
-
-    useEffect(() => {
-        if (repos.length === 0) return;
-        fetchPRs(true);
-    }, [fetchPRs, repos]);
-
-    // Refetch when user returns to this browser tab
-    useEffect(() => {
-        const onVisibilityChange = () => {
-            if (document.visibilityState === "visible") {
-                fetchPRs(true);
-            }
-        };
-        document.addEventListener("visibilitychange", onVisibilityChange);
-        return () => document.removeEventListener("visibilitychange", onVisibilityChange);
-    }, [fetchPRs]);
+    }, [selectedRepoId, mutate]);
 
     // ── Actions ─────────────────────────────────────────────────────────
 
     const handleDeepReview = async (prNumber: number) => {
-        if (!repoId) {
+        if (!selectedRepoId) {
             toast({ title: "No repository connected", description: "Connect a repo first", variant: "destructive" });
             return;
         }
@@ -162,7 +151,7 @@ export default function PRRadarPage() {
         try {
             await apiFetch("/swarm/plan", {
                 method: "POST",
-                body: JSON.stringify({ repo_id: repoId, pr_number: prNumber, mode: "pr_review" }),
+                body: JSON.stringify({ repo_id: selectedRepoId, pr_number: prNumber, mode: "pr_review" }),
             });
             toast({ title: "Review started", description: `Claude is analyzing PR #${prNumber}…` });
             // Refresh after a delay to get the review
@@ -179,7 +168,7 @@ export default function PRRadarPage() {
     };
 
     const handleFixIssues = async (prNumber: number) => {
-        if (!repoId) {
+        if (!selectedRepoId) {
             toast({ title: "No repository connected", variant: "destructive" });
             return;
         }
@@ -187,7 +176,7 @@ export default function PRRadarPage() {
         try {
             const planRes = await apiFetch<{ plan: { id: string } | null }>("/swarm/plan", {
                 method: "POST",
-                body: JSON.stringify({ repo_id: repoId, pr_number: prNumber, mode: "fix_issues" }),
+                body: JSON.stringify({ repo_id: selectedRepoId, pr_number: prNumber, mode: "fix_issues" }),
             });
             if (planRes.plan?.id) {
                 await apiFetch(`/swarm/plans/${planRes.plan.id}/execute`, { method: "POST" });
@@ -318,7 +307,7 @@ export default function PRRadarPage() {
                     title="PR Reviews"
                     description="Heuristic risk analysis + Claude deep reviews of open pull requests"
                     onRefresh={() => fetchPRs(true)}
-                    refreshing={loading}
+                    refreshing={refreshing}
                 />
             </div>
             <div className="flex items-center gap-3">
@@ -332,10 +321,10 @@ export default function PRRadarPage() {
                 </button>
             </div>
 
-            {loading ? (
+            {prsLoading && !prsData ? (
                 <div className="space-y-4">
                     {[1, 2, 3].map((i) => (
-                        <Skeleton key={i} className="h-44 w-full rounded-xl" />
+                        <Skeleton key={i} className="h-44 w-full rounded-xl bg-card/60" />
                     ))}
                 </div>
             ) : prs.length === 0 ? (

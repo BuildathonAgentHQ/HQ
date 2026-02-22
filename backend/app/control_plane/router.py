@@ -58,7 +58,7 @@ async def get_pr_scores(request: Request, repo_id: str, refresh: bool = False) -
                 try:
                     files = await github_connector.get_pr_files(repo.full_name, pr_num)
                     # We pass an empty string for diff to save overhead, parsing lines directly from files
-                    score = await pr_analyzer.analyze_pr(pr, files, "", repo.full_name)
+                    score = await pr_analyzer.analyze_pr(pr, files, "", repo.full_name, bypass_cache=refresh)
                     scores.append(score)
                 except Exception as e:
                     logger.warning(f"Failed to analyze PR {pr_num}: {e}")
@@ -79,19 +79,19 @@ async def get_pr_scores(request: Request, repo_id: str, refresh: bool = False) -
 
 
 @router.get("/coverage", response_model=CoverageReport)
-async def get_coverage(request: Request, repo_id: str) -> CoverageReport:
+async def get_coverage(request: Request, repo_id: str, refresh: bool = False) -> CoverageReport:
     """Return feature-level test coverage across all PRs (open + closed)."""
     repo_manager = request.app.state.repo_manager
     repo = await repo_manager.get_repo(repo_id)
-    return await coverage_analyzer.analyze_coverage(repo.full_name)
+    return await coverage_analyzer.analyze_coverage(repo.full_name, bypass_cache=refresh)
 
 
 @router.get("/health", response_model=RepoHealthReport)
-async def get_repo_health(request: Request, repo_id: str) -> RepoHealthReport:
+async def get_repo_health(request: Request, repo_id: str, refresh: bool = False) -> RepoHealthReport:
     """Return the latest repository health snapshot."""
     repo_manager = request.app.state.repo_manager
     repo = await repo_manager.get_repo(repo_id)
-    return await health_analyzer.analyze_health(repo.full_name)
+    return await health_analyzer.analyze_health(repo.full_name, bypass_cache=refresh)
 
 
 @router.get("/actions", response_model=list[NextBestAction])

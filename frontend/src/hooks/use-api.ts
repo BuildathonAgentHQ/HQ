@@ -1,5 +1,7 @@
 "use client";
 
+import useSWR, { SWRConfiguration } from "swr";
+
 import { API_BASE_URL } from "@/lib/constants";
 import type {
     Task,
@@ -88,3 +90,20 @@ export async function getRepoHealth(): Promise<RepoHealthReport> {
 export async function getActions(): Promise<NextBestAction[]> {
     return apiFetch<NextBestAction[]>("/control-plane/actions");
 }
+
+// ── SWR Data Fetching Hook ─────────────────────────────────────────────────
+
+export function useApiData<T>(path: string | null, config?: SWRConfiguration) {
+    const fetcher = async (url: string) => {
+        const res = await fetch(`${API_BASE_URL}${url}`);
+        if (!res.ok) throw new Error("API error");
+        return res.json() as Promise<T>;
+    };
+
+    return useSWR<T>(path, fetcher, {
+        revalidateOnFocus: true,
+        revalidateOnReconnect: true,
+        ...config,
+    });
+}
+

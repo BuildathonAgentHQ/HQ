@@ -19,6 +19,7 @@ import { useRepo } from "@/context/repo-context";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useApiData } from "@/hooks/use-api";
 import {
     LayoutDashboard,
     Cpu,
@@ -83,38 +84,28 @@ function timeAgo(iso: string | null): string {
 
 export default function DashboardPage() {
     const { events, isConnected, sendMessage } = useWebSocket(WS_URL);
-    const { repos: repoList, selectedRepoId, loading: repoLoading } = useRepo();
-    const [tasks, setTasks] = useState<Task[] | null>(null);
-    const [repos, setRepos] = useState<Repository[] | null>(null);
-    const [reviews, setReviews] = useState<PRReview[] | null>(null);
-    const [swarms, setSwarms] = useState<SwarmPlan[] | null>(null);
+    const { repos, selectedRepoId, loading: repoLoading } = useRepo();
+
+    const { data: tasksData, isLoading: tasksLoading, mutate: mutateTasks } = useApiData<Task[]>("/tasks/", { refreshInterval: 10000 });
+    const tasks = tasksData || null;
+
+    const { data: reviewsData, mutate: mutateReviews } = useApiData<PRReview[]>("/control-plane/reviews/recent", { refreshInterval: 10000 });
+    const reviews = reviewsData || null;
+
+    const { data: swarmsData, mutate: mutateSwarms } = useApiData<SwarmPlan[]>("/swarm/plans/active", { refreshInterval: 10000 });
+    const swarms = swarmsData || null;
+
     const [refreshingTasks, setRefreshingTasks] = useState(false);
 
-    const refreshTasks = useCallback(async () => {
+    const refreshAll = useCallback(async () => {
         setRefreshingTasks(true);
-        try {
-            const data = await apiFetch<Task[]>("/tasks/");
-            setTasks(data);
-        } catch {
-            setTasks([]);
-        } finally {
-            setRefreshingTasks(false);
-        }
-    }, []);
-
-    const refreshAll = useCallback(() => {
-        refreshTasks();
-        apiFetch<PRReview[]>("/control-plane/reviews/recent").then(setReviews).catch(() => setReviews([]));
-        apiFetch<SwarmPlan[]>("/swarm/plans/active").then(setSwarms).catch(() => setSwarms([]));
-    }, [refreshTasks]);
-
-    useEffect(() => {
-        if (repoList.length === 0) return;
-        setRepos(repoList);
-        refreshAll();
-        const id = setInterval(refreshAll, 10_000);
-        return () => clearInterval(id);
-    }, [refreshAll, repoList]);
+        await Promise.all([
+            mutateTasks(),
+            mutateReviews(),
+            mutateSwarms()
+        ]);
+        setRefreshingTasks(false);
+    }, [mutateTasks, mutateReviews, mutateSwarms]);
 
     const [dashTab, setDashTab] = useState<"activity" | "tasks">("activity");
 
@@ -132,16 +123,16 @@ export default function DashboardPage() {
         return map;
     }, [events]);
 
-    if (repoLoading) {
+    if (repoLoading || tasksLoading) {
         return (
             <div className="space-y-6">
-                <div className="h-12 w-full bg-zinc-900/50 rounded-xl animate-pulse" />
-                <div className="h-64 w-full bg-zinc-900/50 rounded-xl animate-pulse" />
+                <Skeleton className="h-12 w-full rounded-xl" />
+                <Skeleton className="h-64 w-full rounded-xl" />
             </div>
         );
     }
 
-    if (repoList.length === 0) {
+    if (repos.length === 0) {
         return <NoRepoState />;
     }
 

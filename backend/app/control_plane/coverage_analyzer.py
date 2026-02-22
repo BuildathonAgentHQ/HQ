@@ -14,6 +14,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import os
+import time
 from typing import Any
 
 from backend.app.config import Settings
@@ -62,13 +63,16 @@ class CoverageAnalyzer:
     def __init__(self, github: GitHubConnector, settings: Settings):
         self.github = github
         self.settings = settings
-        self._cache: CoverageReport | None = None
+        self._cache: dict[str, tuple[CoverageReport, float]] = {}
+        self._cache_ttl = 300  # 5 minutes
 
-    async def analyze_coverage(self, repo_name: str) -> CoverageReport:
+    async def analyze_coverage(self, repo_name: str, bypass_cache: bool = False) -> CoverageReport:
         """Fetch ALL PRs → identify features → cross-match tests → report."""
-        cache_key = repo_name
-        if self._cache and getattr(self, "_last_repo", None) == repo_name:
-            return self._cache
+        now = time.time()
+        if not bypass_cache and repo_name in self._cache:
+            report, expires_at = self._cache[repo_name]
+            if now < expires_at:
+                return report
 
         all_prs = await self.github.get_all_prs(repo_name)
         logger.info("Coverage: analysing %d PRs (open + closed)", len(all_prs))
@@ -210,8 +214,8 @@ class CoverageAnalyzer:
             lines_total=lines_total,
             line_coverage_pct=line_coverage_pct,
         )
-        self._cache = report
-        self._last_repo = repo_name
+        self._cache[repo_name] = (report, now + self._cache_ttl)
+
         logger.info(
             "Coverage: %d/%d features (%.1f%%), %d/%d lines (%.1f%%)",
             tested_features, total_features, coverage_pct,

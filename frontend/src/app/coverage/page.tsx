@@ -19,6 +19,8 @@ import {
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
+import { useApiData } from "@/hooks/use-api";
 import {
     Select,
     SelectContent,
@@ -72,8 +74,11 @@ interface CoverageData {
 
 export default function CoveragePage() {
     const { repos, selectedRepoId, loading: repoLoading } = useRepo();
-    const [data, setData] = useState<CoverageData | null>(null);
-    const [loading, setLoading] = useState(true);
+
+    const { data, isLoading: dataLoading, mutate } = useApiData<CoverageData>(
+        selectedRepoId ? `/control-plane/coverage?repo_id=${selectedRepoId}` : null
+    );
+
     const [dispatching, setDispatching] = useState<string | null>(null);
     const [dispatchResult, setDispatchResult] = useState<Record<string, any>>({});
     const [selectedEngines, setSelectedEngines] = useState<Record<string, string>>({});
@@ -81,26 +86,24 @@ export default function CoveragePage() {
 
     const getEngine = (key: string) => selectedEngines[key] ?? "claude-code";
 
-    const fetchData = useCallback(async () => {
+    const fetchData = useCallback(async (bypassCache = false) => {
         if (!selectedRepoId) return;
-        setRefreshing(true);
-        try {
-            const res = await fetch(`${API_BASE_URL}/control-plane/coverage?repo_id=${selectedRepoId}`);
-            if (res.ok) {
-                setData(await res.json());
+        if (bypassCache) {
+            setRefreshing(true);
+            try {
+                const res = await fetch(`${API_BASE_URL}/control-plane/coverage?repo_id=${selectedRepoId}&refresh=true`);
+                if (res.ok) {
+                    mutate(await res.json(), { revalidate: false });
+                }
+            } catch (e) {
+                console.error(e);
+            } finally {
+                setRefreshing(false);
             }
-        } catch (e) {
-            console.error(e);
-        } finally {
-            setLoading(false);
-            setRefreshing(false);
+        } else {
+            mutate();
         }
-    }, []);
-
-    useEffect(() => {
-        if (repos.length === 0) return;
-        fetchData();
-    }, [repos, fetchData]);
+    }, [selectedRepoId, mutate]);
 
     const generateTests = async (diff: UntestedDiff) => {
         const key = diff.file_path;
@@ -133,12 +136,12 @@ export default function CoveragePage() {
         }
     };
 
-    if (repoLoading || loading) {
+    if (repoLoading || (dataLoading && !data)) {
         return (
             <div className="space-y-6">
-                <div className="h-12 w-full bg-zinc-900/50 rounded-xl animate-pulse" />
-                <div className="h-32 w-full bg-zinc-900/50 rounded-xl animate-pulse" />
-                <div className="h-96 w-full bg-zinc-900/50 rounded-xl animate-pulse" />
+                <Skeleton className="h-12 w-full rounded-xl" />
+                <Skeleton className="h-32 w-full rounded-xl" />
+                <Skeleton className="h-96 w-full rounded-xl" />
             </div>
         );
     }
@@ -157,7 +160,7 @@ export default function CoveragePage() {
                 icon={Shield}
                 title="Coverage Map"
                 description="Line coverage and feature coverage across all PRs (open & closed)."
-                onRefresh={fetchData}
+                onRefresh={() => fetchData(true)}
                 refreshing={refreshing}
             />
 

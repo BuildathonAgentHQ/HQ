@@ -11,6 +11,7 @@ from __future__ import annotations
 import asyncio
 import fnmatch
 import logging
+import time
 from typing import Any, Optional
 
 from backend.app.control_plane.github_connector import GitHubConnector
@@ -67,6 +68,8 @@ class PRAnalyzer:
         ]
         # Cache for Claude reviews: (repo_id, pr_number) → PRReview
         self._review_cache: dict[tuple[str, int], PRReview] = {}
+        self._heuristic_cache: dict[str, tuple[PRRiskScore, float]] = {}
+        self._cache_ttl = 300  # 5 minutes
 
     # ── Core file detection ──────────────────────────────────────────────
 
@@ -88,6 +91,7 @@ class PRAnalyzer:
         repo_name: str,
         *,
         repo_id: Optional[str] = None,
+        bypass_cache: bool = False,
     ) -> PRRiskScore:
         """Calculate a heuristic risk score, then optionally kick off a
         deep Claude review in the background.
@@ -98,10 +102,20 @@ class PRAnalyzer:
             diff:    Full PR diff string (may be empty for faster scoring).
             repo_name: Full repository name (e.g. owner/repo).
             repo_id: If provided, triggers an async Claude review.
+            bypass_cache: If true, ignore memoized values.
 
         Returns:
             ``PRRiskScore`` with heuristic-based risk.
         """
+        pr_number = pr_data.get("number", 0)
+        cache_key = f"{repo_name}_{pr_number}"
+        now = time.time()
+
+        if not bypass_cache and cache_key in self._heuristic_cache:
+            score, expires_at = self._heuristic_cache[cache_key]
+            if now < expires_at:
+                return score
+
         # 1. Diff Size (30%)
         diff_size = sum(
             f.get("additions", 0) + f.get("deletions", 0) for f in files
@@ -174,9 +188,11 @@ class PRAnalyzer:
             diff_size=diff_size,
             core_files_changed=core_files_changed,
             missing_tests=missing_tests,
-            churn_score=churn_risk,
+            churn_score=int(churn_risk),
             has_dependency_overlap=False,
         )
+        # Placeholder for reviewers_suggested, will be populated later if needed
+        reviewers_suggested = []
 
         result = PRRiskScore(
             pr_id=str(pr_data.get("id", pr_data.get("number", 0))),

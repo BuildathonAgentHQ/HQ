@@ -8,6 +8,7 @@ frequently changed (hot) files, and technical debt comments.
 from __future__ import annotations
 
 import logging
+import time
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
@@ -22,11 +23,19 @@ class RepoHealthAnalyzer:
 
     def __init__(self, github: GitHubConnector):
         self.github = github
+        self._cache: dict[str, tuple[RepoHealthReport, float]] = {}
+        self._cache_ttl = 300  # 5 minutes
 
-    async def analyze_health(self, repo_name: str) -> RepoHealthReport:
+    async def analyze_health(self, repo_name: str, bypass_cache: bool = False) -> RepoHealthReport:
         """
         Aggregate all repository health metrics into a single report.
         """
+        now = time.time()
+        if not bypass_cache and repo_name in self._cache:
+            report, expires_at = self._cache[repo_name]
+            if now < expires_at:
+                return report
+
         # Fetch data needed for analysis
         commits = []
         try:
@@ -69,12 +78,14 @@ class RepoHealthAnalyzer:
         # Parse recently changed files for TODO/FIXME/HACK/XXX
         tech_debt_items = await self._find_tech_debt(hot_files)
 
-        return RepoHealthReport(
+        report = RepoHealthReport(
             ci_status=ci_status,
             flaky_tests=flaky_tests,
             hot_files=hot_files,
             tech_debt_items=tech_debt_items
         )
+        self._cache[repo_name] = (report, now + self._cache_ttl)
+        return report
 
     async def _calculate_hot_files(self, commits: list[dict[str, Any]], repo_name: str) -> list[HotFile]:
         """Calculate the top 10 most changed files in the last 30 days."""

@@ -26,6 +26,8 @@ import { API_BASE_URL } from "@/lib/constants";
 import { useRepo } from "@/context/repo-context";
 import { PageHeader } from "@/components/page-header";
 import { NoRepoState } from "@/components/no-repo-state";
+import { Skeleton } from "@/components/ui/skeleton";
+import { useApiData } from "@/hooks/use-api";
 
 const ENGINES = [
     { value: "claude-code", label: "Claude Code" },
@@ -36,34 +38,38 @@ const ENGINES = [
 
 export default function RepoHealthPage() {
     const { repos, selectedRepoId, loading: repoLoading } = useRepo();
-    const [healthData, setHealthData] = useState<any>(null);
-    const [actionsData, setActionsData] = useState<any[]>([]);
-    const [loading, setLoading] = useState(true);
+
+    const { data: healthData, isLoading: healthLoading, mutate: mutateHealth } = useApiData<any>(
+        selectedRepoId ? `/control-plane/health?repo_id=${selectedRepoId}` : null
+    );
+    const { data: actionsDataRaw, isLoading: actionsLoading, mutate: mutateActions } = useApiData<any[]>(
+        selectedRepoId ? `/control-plane/actions?repo_id=${selectedRepoId}` : null
+    );
+    const actionsData = actionsDataRaw || [];
+
     const [refreshing, setRefreshing] = useState(false);
 
-    const fetchAll = useCallback(async () => {
+    const fetchAll = useCallback(async (bypassCache = false) => {
         if (!selectedRepoId) return;
-        setRefreshing(true);
-        try {
-            const [healthRes, actionsRes] = await Promise.all([
-                fetch(`${API_BASE_URL}/control-plane/health?repo_id=${selectedRepoId}`),
-                fetch(`${API_BASE_URL}/control-plane/actions?repo_id=${selectedRepoId}`)
-            ]);
-
-            if (healthRes.ok) setHealthData(await healthRes.json());
-            if (actionsRes.ok) setActionsData(await actionsRes.json());
-        } catch (e) {
-            console.error(e);
-        } finally {
-            setLoading(false);
-            setRefreshing(false);
+        if (bypassCache) {
+            setRefreshing(true);
+            try {
+                const [healthRes, actionsRes] = await Promise.all([
+                    fetch(`${API_BASE_URL}/control-plane/health?repo_id=${selectedRepoId}&refresh=true`),
+                    fetch(`${API_BASE_URL}/control-plane/actions?repo_id=${selectedRepoId}&refresh=true`)
+                ]);
+                if (healthRes.ok) mutateHealth(await healthRes.json(), { revalidate: false });
+                if (actionsRes.ok) mutateActions(await actionsRes.json(), { revalidate: false });
+            } catch (e) {
+                console.error(e);
+            } finally {
+                setRefreshing(false);
+            }
+        } else {
+            mutateHealth();
+            mutateActions();
         }
-    }, []);
-
-    useEffect(() => {
-        if (repos.length === 0) return;
-        fetchAll();
-    }, [repos, fetchAll]);
+    }, [selectedRepoId, mutateHealth, mutateActions]);
 
     const [dispatching, setDispatching] = useState<string | null>(null);
     const [dispatchResult, setDispatchResult] = useState<Record<string, any>>({});
@@ -127,14 +133,14 @@ export default function RepoHealthPage() {
         );
     };
 
-    if (repoLoading || loading) {
+    if (repoLoading || (healthLoading && !healthData)) {
         return (
-            <div className="space-y-6 animate-pulse">
-                <div className="h-12 w-full bg-zinc-900/50 rounded-xl" />
-                <div className="h-40 w-full bg-zinc-900/50 rounded-xl" />
+            <div className="space-y-6">
+                <Skeleton className="h-12 w-full rounded-xl" />
+                <Skeleton className="h-40 w-full rounded-xl" />
                 <div className="grid grid-cols-2 gap-6">
-                    <div className="h-64 bg-zinc-900/50 rounded-xl" />
-                    <div className="h-64 bg-zinc-900/50 rounded-xl" />
+                    <Skeleton className="h-64 rounded-xl" />
+                    <Skeleton className="h-64 rounded-xl" />
                 </div>
             </div>
         );
@@ -150,7 +156,7 @@ export default function RepoHealthPage() {
                 icon={HeartPulse}
                 title="Repository Health"
                 description={`Continuous codebase telemetry. Current CI state: ${healthData?.ci_status ?? 'unknown'}`}
-                onRefresh={fetchAll}
+                onRefresh={() => fetchAll(true)}
                 refreshing={refreshing}
             />
 
