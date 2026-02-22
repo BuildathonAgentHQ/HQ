@@ -67,6 +67,12 @@ async def _on_task_lifecycle(ws_event: WebSocketEvent) -> None:
         elif status in {"success", "failed"}:
             # Persist final status/exit code before closing the run
             updated = task_manager.update_task(task_id, status=status, exit_code=exit_code) or task
+            
+            # Upload the accumulated logs to MLflow
+            logs = process_manager.task_output_buffers.get(task_id, [])
+            log_text = "\n".join(logs) if logs else "No logs produced by agent."
+            await _telemetry.log_task_output(task_id, log_text)
+                
             await _telemetry.end_tracking(updated)
     except Exception:
         logger.exception("Telemetry lifecycle handler failed for task %s", task_id)
