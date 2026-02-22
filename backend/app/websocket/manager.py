@@ -163,8 +163,10 @@ class ConnectionManager:
         """
         try:
             await websocket.send_json(event.model_dump(mode="json"))
-        except Exception:
+        except Exception as e:
             await self.disconnect(websocket)
+            from starlette.websockets import WebSocketDisconnect
+            raise WebSocketDisconnect(code=1006, reason=str(e))
 
     # ── Introspection ───────────────────────────────────────────────────────
 

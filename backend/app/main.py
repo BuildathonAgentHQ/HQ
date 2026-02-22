@@ -86,6 +86,9 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     app.state.repo_manager = repo_manager
     app.state.repo_analyzer = repo_analyzer
     app.state.swarm_orchestrator = swarm_orchestrator
+    # Import task_manager from orchestrator router (it's a module-level singleton)
+    from backend.app.orchestrator.router import task_manager
+    app.state.task_manager = task_manager
 
     # ── Health checks ────────────────────────────────────────────────────
     # Claude API

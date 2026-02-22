@@ -25,6 +25,7 @@ const NAV_ITEMS = [
   { label: "Repositories", href: "/repos", icon: GitFork },
   { label: "Dashboard", href: "/", icon: LayoutDashboard },
   { label: "Agent Console", href: "/console", icon: Terminal },
+  { label: "Agent Analytics", href: "/analytics", icon: Zap },
   { label: "PR Reviews", href: "/pr-radar", icon: GitPullRequest },
   { label: "Coverage Map", href: "/coverage", icon: Shield },
   { label: "Repo Health", href: "/repo-health", icon: HeartPulse },

@@ -280,10 +280,10 @@ export default function RepoHealthPage() {
                                     <li key={i} className="text-sm p-3 rounded-md border border-zinc-800/50 bg-black/20 flex flex-col gap-2">
                                         <div className="flex justify-between items-start">
                                             <Badge variant="outline" className={`
-                        ${item.severity === "high" ? "border-red-500/30 text-red-500 bg-red-500/10" : ""}
-                        ${item.severity === "medium" ? "border-yellow-500/30 text-yellow-500 bg-yellow-500/10" : ""}
-                        ${item.severity === "low" ? "border-blue-500/30 text-blue-500 bg-blue-500/10" : ""}
-                      `}>
+                    ${item.severity === "high" ? "border-red-500/30 text-red-500 bg-red-500/10" : ""}
+                    ${item.severity === "medium" ? "border-yellow-500/30 text-yellow-500 bg-yellow-500/10" : ""}
+                    ${item.severity === "low" ? "border-blue-500/30 text-blue-500 bg-blue-500/10" : ""}
+                  `}>
                                                 {item.severity}
                                             </Badge>
                                             <span className="text-xs text-zinc-500">{item.age_days} days old</span>

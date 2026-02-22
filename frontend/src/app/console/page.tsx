@@ -1,23 +1,25 @@
 "use client";
 
-<<<<<<< Updated upstream
 import { useEffect, useState, useMemo } from "react";
 import { getTasks } from "@/hooks/use-api";
 import { useWebSocket } from "@/hooks/use-websocket";
 import { WS_URL } from "@/lib/constants";
 import type { Task } from "@/lib/types";
+import { useEffect, useState, useCallback, useMemo } from "react";
+import { getTasks } from "@/hooks/use-api";
+import { useWebSocket } from "@/hooks/use-websocket";
+import { WS_URL } from "@/lib/constants";
+import type { Task, WebSocketEvent } from "@/lib/types";
 
 import { TaskCard } from "@/components/task-card";
 import { TaskDetailSheet } from "@/components/task-detail-sheet";
 import { Skeleton } from "@/components/ui/skeleton";
-=======
 import { useEffect, useState, useRef, useCallback, useMemo } from "react";
 import { getTasks, injectPrompt, cancelTask, suspendTask, resumeTask } from "@/hooks/use-api";
 import { useWebSocket } from "@/hooks/use-websocket";
 import { WS_URL } from "@/lib/constants";
 import type { Task, WebSocketEvent, TranslatedEvent } from "@/lib/types";
 
->>>>>>> Stashed changes
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
@@ -100,7 +102,6 @@ type StatusFilter = "all" | "running" | "pending" | "success" | "failed" | "susp
 
 export default function ConsolePage() {
     const [tasks, setTasks] = useState<Task[] | null>(null);
-<<<<<<< Updated upstream
     const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
     const [selectedTask, setSelectedTask] = useState<Task | null>(null);
     const [sheetOpen, setSheetOpen] = useState(false);
@@ -111,7 +112,6 @@ export default function ConsolePage() {
         if (statusFilter === "all") return tasks;
         return tasks.filter((t) => t.status === statusFilter);
     }, [tasks, statusFilter]);
-=======
     const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
     const [filter, setFilter] = useState<StatusFilter>("all");
     const [chatInput, setChatInput] = useState("");
@@ -121,7 +121,10 @@ export default function ConsolePage() {
     const inputRef = useRef<HTMLInputElement>(null);
     const { toast } = useToast();
     const { events } = useWebSocket(WS_URL);
->>>>>>> Stashed changes
+
+    const [activeFilter, setActiveFilter] = useState("all");
+    const { events } = useWebSocket(WS_URL);
+
 
     useEffect(() => {
         const fetchTasks = () => getTasks().then(setTasks).catch(() => {});
@@ -130,11 +133,30 @@ export default function ConsolePage() {
         return () => clearInterval(id);
     }, []);
 
-<<<<<<< Updated upstream
     const handleSelectTask = (task: Task) => {
         setSelectedTask(task);
         setSheetOpen(true);
     };
+    // Group events by task_id for passing to TaskCards
+    const eventsByTask = useMemo(() => {
+        const map: Record<string, Array<{ status: string; timestamp: string }>> = {};
+        for (const evt of events) {
+            if (!evt.task_id) continue;
+            const payload = evt.payload as Record<string, unknown> | undefined;
+            const status = String(payload?.status ?? payload?.message ?? evt.event_type ?? "");
+            const timestamp = String(evt.timestamp ?? new Date().toISOString());
+            if (!map[evt.task_id]) map[evt.task_id] = [];
+            map[evt.task_id].push({ status, timestamp });
+        }
+        return map;
+    }, [events]);
+
+    // Filter tasks
+    const filteredTasks = useMemo(() => {
+        if (!tasks) return null;
+        if (activeFilter === "all") return tasks;
+        return tasks.filter((t) => t.status === activeFilter);
+    }, [tasks, activeFilter]);
 
     return (
         <div className="space-y-6">
@@ -159,8 +181,20 @@ export default function ConsolePage() {
                                 statusFilter === s ? "ring-1 ring-indigo-500/50 bg-indigo-500/10" : ""
                             }`}
                             onClick={() => setStatusFilter(s)}
+                            className={`capitalize cursor-pointer hover:bg-white/10 transition-colors ${activeFilter === s ? "bg-indigo-500/20 text-indigo-400 border-indigo-500/30" : ""}`}
+                            onClick={() => setActiveFilter(s)}
                         >
                             {s}
+                            {tasks && s !== "all" && (
+                                <span className="ml-1 text-[9px] opacity-60">
+                                    {tasks.filter((t) => t.status === s).length}
+                                </span>
+                            )}
+                            {tasks && s === "all" && (
+                                <span className="ml-1 text-[9px] opacity-60">
+                                    {tasks.length}
+                                </span>
+                            )}
                         </Badge>
                     )
                 )}
@@ -185,6 +219,9 @@ export default function ConsolePage() {
                             {statusFilter === "all"
                                 ? "No tasks yet. Deploy agents from the Dashboard."
                                 : `No ${statusFilter} tasks.`}
+                            {activeFilter === "all"
+                                ? "No tasks yet. Deploy agents from the Dashboard."
+                                : `No ${activeFilter} tasks.`}
                         </p>
                     </div>
                 ) : (
@@ -193,10 +230,10 @@ export default function ConsolePage() {
                             key={t.id}
                             task={t}
                             onSelect={handleSelectTask}
+                            events={eventsByTask[t.id] ?? []}
                         />
                     ))
                 )}
-=======
     useEffect(() => {
         if (events.length === 0) return;
         const latest = events[0];
@@ -637,7 +674,6 @@ export default function ConsolePage() {
                         </>
                     )}
                 </div>
->>>>>>> Stashed changes
             </div>
 
             {/* Task detail sheet with chat */}

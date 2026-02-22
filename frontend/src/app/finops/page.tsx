@@ -131,25 +131,25 @@ export default function FinOpsPage() {
                         <StatCard
                             icon={DollarSign}
                             label="Today's Spend"
-                            value={`$${display.today_spend.toFixed(2)}`}
+                            value={`$${display.today_spend.toFixed(4)}`}
                             color="text-emerald-400"
                         />
                         <StatCard
                             icon={TrendingUp}
                             label="30-Day Spend"
-                            value={`$${display.monthly_spend.toFixed(2)}`}
+                            value={`$${display.monthly_spend.toFixed(4)}`}
                             color="text-blue-400"
                         />
                         <StatCard
                             icon={Calculator}
                             label="Avg Cost / Task"
-                            value={`$${display.avg_cost_per_task.toFixed(2)}`}
+                            value={`$${display.avg_cost_per_task.toFixed(4)}`}
                             color="text-violet-400"
                         />
                         <StatCard
                             icon={Flame}
                             label="Projected Monthly Burn"
-                            value={`$${display.projected_burn.toFixed(2)}`}
+                            value={`$${display.projected_burn.toFixed(4)}`}
                             color="text-amber-400"
                         />
                     </>
@@ -195,7 +195,7 @@ export default function FinOpsPage() {
                                         color: "#e2e8f0",
                                         fontSize: 12,
                                     }}
-                                    formatter={(val: number) => [`$${val.toFixed(2)}`, "Spend"]}
+                                    formatter={(val: number) => [`$${val.toFixed(4)}`, "Spend"]}
                                 />
                                 <Line
                                     type="monotone"
@@ -250,7 +250,7 @@ export default function FinOpsPage() {
                                     </code>
                                     <span className="truncate text-xs">{t.description}</span>
                                     <span className="text-right tabular-nums font-medium">
-                                        ${t.cost.toFixed(2)}
+                                        ${t.cost.toFixed(4)}
                                     </span>
                                     <span className="text-right tabular-nums text-muted-foreground flex items-center justify-end gap-1">
                                         <Clock className="h-3 w-3" />

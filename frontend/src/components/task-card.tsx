@@ -151,20 +151,81 @@ export function TaskCard({ task, events = [], onSelect }: TaskCardProps) {
 
                 {/* ── Expanded detail ──────────────────────────────────── */}
                 {expanded && (
-                    <div className="pt-2 border-t border-border/20 space-y-2 animate-fade-in">
-                        <p className="text-xs text-muted-foreground">{task.task}</p>
-                        {events.length > 0 && (
+                    <div className="pt-3 border-t border-border/20 space-y-3 animate-fade-in">
+                        {/* Task description */}
+                        <p className="text-xs text-muted-foreground/90">{task.task}</p>
+
+                        {/* Metadata row */}
+                        <div className="flex flex-wrap gap-3 text-[10px] text-muted-foreground">
+                            {task.agent_type && (
+                                <span>Type: <span className="text-slate-300">{task.agent_type}</span></span>
+                            )}
+                            {task.token_count != null && task.token_count > 0 && (
+                                <span>Tokens: <span className="text-slate-300">{task.token_count.toLocaleString()}</span></span>
+                            )}
+                            {task.exit_code != null && (
+                                <span>Exit: <span className={task.exit_code === 0 ? "text-emerald-400" : "text-red-400"}>{task.exit_code}</span></span>
+                            )}
+                            {task.strike_count != null && task.strike_count > 0 && (
+                                <span>Strikes: <span className="text-amber-400">{task.strike_count}</span></span>
+                            )}
+                        </div>
+
+                        {/* Event log */}
+                        {events.length > 0 ? (
                             <div className="space-y-1">
-                                <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
-                                    Recent events
+                                <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
+                                    Activity Log ({events.length} events)
                                 </p>
-                                {events.slice(0, 5).map((ev, i) => (
-                                    <p key={i} className="text-xs text-muted-foreground/80 pl-2 border-l border-border/30">
-                                        {ev.status}
-                                    </p>
-                                ))}
+                                <div className="max-h-48 overflow-y-auto space-y-0.5 pr-1">
+                                    {events.map((ev, i) => (
+                                        <div key={i} className="flex items-start gap-2 text-xs pl-2 border-l-2 border-indigo-500/20 py-0.5">
+                                            <span className="text-[9px] text-muted-foreground/50 shrink-0 tabular-nums w-14">
+                                                {ev.timestamp ? new Date(ev.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : ''}
+                                            </span>
+                                            <span className="text-muted-foreground/80">{ev.status}</span>
+                                        </div>
+                                    ))}
+                                </div>
                             </div>
+                        ) : (
+                            <p className="text-[10px] text-muted-foreground/60 italic">
+                                No events logged yet. Events will appear here as the agent runs.
+                            </p>
                         )}
+
+                        {/* Export button */}
+                        <div className="pt-1">
+                            <button
+                                className="text-[10px] text-indigo-400 hover:text-indigo-300 transition-colors flex items-center gap-1"
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    const data = {
+                                        task_id: task.id,
+                                        task: task.task,
+                                        engine: task.engine,
+                                        agent_type: task.agent_type,
+                                        status: task.status,
+                                        budget_used: task.budget_used,
+                                        budget_limit: task.budget_limit,
+                                        token_count: task.token_count,
+                                        created_at: task.created_at,
+                                        updated_at: task.updated_at,
+                                        events: events,
+                                    };
+                                    // Download as JSON for Databricks ingestion
+                                    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+                                    const url = URL.createObjectURL(blob);
+                                    const a = document.createElement('a');
+                                    a.href = url;
+                                    a.download = `task_${task.id.slice(0, 8)}_export.json`;
+                                    a.click();
+                                    URL.revokeObjectURL(url);
+                                }}
+                            >
+                                📤 Export for Databricks
+                            </button>
+                        </div>
                     </div>
                 )}
             </CardContent>
