@@ -21,7 +21,7 @@ logging.basicConfig(
 )
 logging.getLogger("backend").setLevel(logging.INFO)
 
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 
 from backend.app.config import settings
@@ -42,6 +42,7 @@ from backend.app.telemetry.metrics_api import router as telemetry_router
 from backend.app.control_plane.router import router as control_plane_router
 from backend.app.knowledge.router import router as knowledge_router
 from backend.app.timeline.router import router as timeline_router
+from backend.app.auth.router import router as auth_router
 from backend.app.config_router import router as config_router
 from backend.app.repo_manager.router import router as repo_manager_router
 from backend.app.swarm.router import router as swarm_router
@@ -191,6 +192,21 @@ app.add_middleware(
 #  REST Route Registrations
 # ═════════════════════════════════════════════════════════════════════════════
 
+app.include_router(auth_router,           prefix="/api/auth",          tags=["auth"])
+
+# Fallback OAuth callback route: /api/github/auth/callback (some GitHub apps use this path order)
+# Must be registered so both /api/auth/github/callback and /api/github/auth/callback work
+from backend.app.auth.router import _do_github_callback
+@app.get("/api/github/auth/callback", tags=["auth"])
+async def github_callback_alt(
+    request: Request,
+    code: str | None = None,
+    state: str | None = None,
+    error: str | None = None,
+) -> Any:
+    """Handle GitHub OAuth callback at /api/github/auth/callback (alternate path)."""
+    redirect_uri = str(request.url).split("?")[0]
+    return await _do_github_callback(code, state, error, redirect_uri)
 app.include_router(orchestrator_router,   prefix="/api/tasks",          tags=["tasks"])
 app.include_router(telemetry_router,      prefix="/api/metrics",        tags=["metrics"])
 app.include_router(control_plane_router,  prefix="/api/control-plane",  tags=["control-plane"])

@@ -29,6 +29,23 @@ make dev
 make mock
 ```
 
+## GitHub OAuth (optional)
+
+To enable "Sign in with GitHub" and the repo dropdown on the Repositories page:
+
+1. Create an [OAuth App](https://github.com/settings/applications/new) on GitHub
+2. Set **Authorization callback URL** to either:
+   - `http://localhost:8000/api/auth/github/callback` or
+   - `http://localhost:8000/api/github/auth/callback`  
+   ⚠️ Must use port **8000** (backend). Both paths are supported.
+3. Add to `.env`:
+   ```
+   GITHUB_CLIENT_ID=your_client_id
+   GITHUB_CLIENT_SECRET=your_client_secret
+   GITHUB_OAUTH_REDIRECT_URI=http://localhost:8000/api/auth/github/callback
+   GITHUB_OAUTH_SCOPES=repo,read:user
+   ```
+
 ## Make Targets
 
 | Target | Description |

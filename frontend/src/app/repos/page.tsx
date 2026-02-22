@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback, FormEvent } from "react";
+import { useEffect, useState, useCallback, FormEvent, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/hooks/use-toast";
 import { API_BASE_URL } from "@/lib/constants";
@@ -26,6 +26,8 @@ import {
     Trash2,
     Bug,
     GitPullRequest,
+    ChevronDown,
+    LogOut,
 } from "lucide-react";
 
 // ── Helpers ────────────────────────────────────────────────────────────────
@@ -95,8 +97,11 @@ function techBadgeClass(tech: string): string {
 
 // ── API calls ──────────────────────────────────────────────────────────────
 
+const fetchOpts: RequestInit = { credentials: "include" };
+
 async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
     const res = await fetch(`${API_BASE_URL}${path}`, {
+        ...fetchOpts,
         headers: { "Content-Type": "application/json", ...init?.headers },
         ...init,
     });
@@ -135,6 +140,31 @@ async function triggerAudit(repoId: string) {
 
 // ── Page Component ─────────────────────────────────────────────────────────
 
+interface AuthUser {
+    login: string;
+    name?: string;
+    avatar_url?: string;
+}
+
+interface GitHubRepo {
+    id: number;
+    full_name: string;
+    owner: string;
+    name: string;
+    private: boolean;
+    html_url: string;
+}
+
+interface ActivePR {
+    repo_id: string;
+    repo_full_name: string;
+    number: number;
+    title: string;
+    author: string;
+    html_url: string;
+    created_at?: string;
+}
+
 export default function ReposPage() {
     const router = useRouter();
     const { toast } = useToast();
@@ -142,6 +172,16 @@ export default function ReposPage() {
     const [repoInput, setRepoInput] = useState("");
     const [isAdding, setIsAdding] = useState(false);
     const [loadingActions, setLoadingActions] = useState<Set<string>>(new Set());
+    const [authUser, setAuthUser] = useState<AuthUser | null>(null);
+    const [githubRepos, setGithubRepos] = useState<GitHubRepo[]>([]);
+    const [authLoading, setAuthLoading] = useState(true);
+    const [githubReposLoading, setGithubReposLoading] = useState(false);
+    const [repoDropdownOpen, setRepoDropdownOpen] = useState(false);
+    const [prDropdownOpen, setPrDropdownOpen] = useState(false);
+    const [activePRs, setActivePRs] = useState<ActivePR[]>([]);
+    const [activePRsLoading, setActivePRsLoading] = useState(false);
+    const repoDropdownRef = useRef<HTMLDivElement>(null);
+    const prDropdownRef = useRef<HTMLDivElement>(null);
 
     const fetchRepos = useCallback(async () => {
         try {
@@ -152,9 +192,144 @@ export default function ReposPage() {
         }
     }, []);
 
+    const fetchActivePRs = useCallback(async () => {
+        setActivePRsLoading(true);
+        try {
+            const data = await apiFetch<ActivePR[]>("/repos/all-prs");
+            setActivePRs(data);
+        } catch {
+            setActivePRs([]);
+        } finally {
+            setActivePRsLoading(false);
+        }
+    }, []);
+
+    const fetchAuth = useCallback(async () => {
+        setAuthLoading(true);
+        try {
+            const res = await fetch(`${API_BASE_URL}/auth/me`, { credentials: "include" });
+            const data = await res.json();
+            if (data.authenticated && data.user) {
+                setAuthUser(data.user);
+            } else {
+                setAuthUser(null);
+            }
+        } catch {
+            setAuthUser(null);
+        } finally {
+            setAuthLoading(false);
+        }
+    }, []);
+
+    const fetchGithubRepos = useCallback(async () => {
+        if (!authUser) return;
+        setGithubReposLoading(true);
+        try {
+            const res = await fetch(`${API_BASE_URL}/auth/github/repos`, { credentials: "include" });
+            const data = await res.json();
+            setGithubRepos(data.repos || []);
+        } catch {
+            setGithubRepos([]);
+        } finally {
+            setGithubReposLoading(false);
+        }
+    }, [authUser]);
+
     useEffect(() => {
         fetchRepos();
     }, [fetchRepos]);
+
+    useEffect(() => {
+        if (repos && repos.length > 0) {
+            fetchActivePRs();
+        } else {
+            setActivePRs([]);
+        }
+    }, [repos, fetchActivePRs]);
+
+    useEffect(() => {
+        fetchAuth();
+    }, [fetchAuth]);
+
+    useEffect(() => {
+        const onClose = (e: MouseEvent) => {
+            if (repoDropdownRef.current && !repoDropdownRef.current.contains(e.target as Node)) {
+                setRepoDropdownOpen(false);
+            }
+            if (prDropdownRef.current && !prDropdownRef.current.contains(e.target as Node)) {
+                setPrDropdownOpen(false);
+            }
+        };
+        if (repoDropdownOpen || prDropdownOpen) {
+            document.addEventListener("click", onClose);
+            return () => document.removeEventListener("click", onClose);
+        }
+    }, [repoDropdownOpen, prDropdownOpen]);
+
+    useEffect(() => {
+        if (authUser) fetchGithubRepos();
+        else setGithubRepos([]);
+    }, [authUser, fetchGithubRepos]);
+
+    // Handle OAuth callback errors from URL
+    useEffect(() => {
+        const params = new URLSearchParams(typeof window !== "undefined" ? window.location.search : "");
+        const error = params.get("error");
+        if (error) {
+            toast({
+                title: "GitHub sign-in failed",
+                description: error === "github_oauth_not_configured"
+                    ? "GitHub OAuth is not configured. Set GITHUB_CLIENT_ID and GITHUB_CLIENT_SECRET in .env"
+                    : `Error: ${error}`,
+                variant: "destructive",
+            });
+            window.history.replaceState({}, "", "/repos");
+        }
+    }, [toast]);
+
+    const handleLogout = async () => {
+        try {
+            await fetch(`${API_BASE_URL}/auth/logout`, {
+                method: "POST",
+                credentials: "include",
+            });
+            setAuthUser(null);
+            setGithubRepos([]);
+            toast({ title: "Signed out" });
+        } catch {
+            setAuthUser(null);
+        }
+    };
+
+    const handleAddFromDropdown = async (ghRepo: GitHubRepo) => {
+        const [owner, name] = ghRepo.full_name.split("/");
+        if (!owner || !name) return;
+        setIsAdding(true);
+        setRepoDropdownOpen(false);
+        try {
+            await addRepo(owner, name);
+            toast({
+                title: "Repository connected",
+                description: `${ghRepo.full_name} added. Analyzing…`,
+            });
+            await fetchRepos();
+        } catch (err: unknown) {
+            toast({
+                title: "Connection failed",
+                description: err instanceof Error ? err.message : "Could not connect repository",
+                variant: "destructive",
+            });
+        } finally {
+            setIsAdding(false);
+        }
+    };
+
+    const connectedFullNames = new Set((repos ?? []).map((r) => r.full_name));
+
+    const handleSelectPR = (pr: ActivePR) => {
+        setPrDropdownOpen(false);
+        router.push(`/repos/${pr.repo_id}/prs/${pr.number}`);
+    };
 
     // ── Add repo ────────────────────────────────────────────────────────
 
@@ -287,18 +462,114 @@ export default function ReposPage() {
                 </p>
             </div>
 
-            {/* ── Add Repository ───────────────────────────────────── */}
+            {/* ── Auth + Add Repository ───────────────────────────────────── */}
             <Card className="border-border/40 bg-card/60 backdrop-blur">
                 <CardHeader className="pb-4">
-                    <CardTitle className="flex items-center gap-2 text-base">
-                        <Plus className="h-4 w-4 text-indigo-400" />
-                        Connect Repository
+                    <CardTitle className="flex items-center justify-between text-base">
+                        <span className="flex items-center gap-2">
+                            <Plus className="h-4 w-4 text-indigo-400" />
+                            Connect Repository
+                        </span>
+                        {authLoading ? (
+                            <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                        ) : authUser ? (
+                            <div className="flex items-center gap-2">
+                                {authUser.avatar_url && (
+                                    <img
+                                        src={authUser.avatar_url}
+                                        alt=""
+                                        className="h-6 w-6 rounded-full"
+                                    />
+                                )}
+                                <span className="text-sm text-muted-foreground">
+                                    {authUser.login}
+                                </span>
+                                <button
+                                    onClick={handleLogout}
+                                    className="rounded p-1 text-muted-foreground hover:bg-white/5 hover:text-white transition-colors"
+                                    title="Sign out"
+                                >
+                                    <LogOut className="h-3.5 w-3.5" />
+                                </button>
+                            </div>
+                        ) : null}
                     </CardTitle>
                     <CardDescription>
-                        Paste a GitHub URL or enter owner/name format
+                        {authUser
+                            ? "Select from your GitHub repos or paste a URL"
+                            : "Sign in with GitHub to select from your repos, or paste a URL"}
                     </CardDescription>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="space-y-3">
+                    {!authUser && (
+                        <div className="space-y-2">
+                            <a
+                                href={`${API_BASE_URL.replace("/api", "")}/api/auth/github/login`}
+                                className="inline-flex items-center gap-2 rounded-lg border border-slate-600 bg-slate-800/50 px-4 py-2.5 text-sm font-medium text-white hover:bg-slate-700/50 transition-colors"
+                            >
+                                <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 24 24">
+                                    <path fillRule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z" clipRule="evenodd" />
+                                </svg>
+                                Sign in with GitHub
+                            </a>
+                            <p className="text-xs text-muted-foreground">
+                                You&apos;ll be redirected to GitHub to enter your username or email and password.
+                            </p>
+                        </div>
+                    )}
+
+                    {authUser && githubRepos.length > 0 && (
+                        <div className="relative" ref={repoDropdownRef}>
+                            <button
+                                type="button"
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    setRepoDropdownOpen(!repoDropdownOpen);
+                                }}
+                                disabled={isAdding || githubReposLoading}
+                                className="inline-flex items-center gap-2 w-full rounded-lg border border-border/40 bg-background/50 py-2.5 px-4 text-sm text-foreground hover:border-indigo-500/50 transition-colors disabled:opacity-50"
+                            >
+                                <GitFork className="h-4 w-4 text-muted-foreground shrink-0" />
+                                {githubReposLoading ? (
+                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                ) : (
+                                    <span className="truncate">
+                                        Select a repository from your GitHub…
+                                    </span>
+                                )}
+                                <ChevronDown className={`h-4 w-4 ml-auto shrink-0 transition-transform ${repoDropdownOpen ? "rotate-180" : ""}`} />
+                            </button>
+                            {repoDropdownOpen && (
+                                <div className="absolute top-full left-0 right-0 mt-1 z-50 max-h-60 overflow-y-auto rounded-lg border border-border/40 bg-[#0d1117] shadow-xl py-1">
+                                    {githubRepos
+                                        .filter((r) => !connectedFullNames.has(r.full_name))
+                                        .map((r) => (
+                                            <button
+                                                key={r.id}
+                                                type="button"
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    handleAddFromDropdown(r);
+                                                }}
+                                                className="w-full text-left px-4 py-2 text-sm hover:bg-white/5 flex items-center gap-2"
+                                            >
+                                                <GitFork className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                                                <span className="truncate">{r.full_name}</span>
+                                                {r.private && (
+                                                    <span className="text-[10px] text-muted-foreground">private</span>
+                                                )}
+                                            </button>
+                                        ))}
+                                    {githubRepos.filter((r) => !connectedFullNames.has(r.full_name)).length === 0 && (
+                                        <p className="px-4 py-3 text-sm text-muted-foreground">
+                                            All your repos are already connected
+                                        </p>
+                                    )}
+                                </div>
+                            )}
+                        </div>
+                    )}
+
                     <form onSubmit={handleAddRepo} className="flex gap-3">
                         <div className="relative flex-1">
                             <GitFork className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -306,7 +577,7 @@ export default function ReposPage() {
                                 type="text"
                                 value={repoInput}
                                 onChange={(e) => setRepoInput(e.target.value)}
-                                placeholder="facebook/react or https://github.com/facebook/react"
+                                placeholder="Or paste: facebook/react or https://github.com/owner/repo"
                                 className="w-full rounded-lg border border-border/40 bg-background/50 py-2.5 pl-10 pr-4 text-sm text-foreground placeholder:text-muted-foreground/60 focus:border-indigo-500/50 focus:outline-none focus:ring-1 focus:ring-indigo-500/30 transition-colors"
                                 disabled={isAdding}
                             />
@@ -326,6 +597,66 @@ export default function ReposPage() {
                     </form>
                 </CardContent>
             </Card>
+
+            {/* ── Active PRs dropdown (when repos connected) ───────────── */}
+            {repos && repos.length > 0 && (
+                <Card className="border-border/40 bg-card/60 backdrop-blur">
+                    <CardHeader className="pb-4">
+                        <CardTitle className="flex items-center gap-2 text-base">
+                            <GitPullRequest className="h-4 w-4 text-indigo-400" />
+                            Connect to PR
+                        </CardTitle>
+                        <CardDescription>
+                            Select an active PR from your connected repositories to view and review
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <div className="relative" ref={prDropdownRef}>
+                            <button
+                                type="button"
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    setPrDropdownOpen(!prDropdownOpen);
+                                }}
+                                disabled={activePRsLoading}
+                                className="inline-flex items-center gap-2 w-full rounded-lg border border-border/40 bg-background/50 py-2.5 px-4 text-sm text-foreground hover:border-indigo-500/50 transition-colors disabled:opacity-50"
+                            >
+                                <GitPullRequest className="h-4 w-4 text-muted-foreground shrink-0" />
+                                {activePRsLoading ? (
+                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                ) : (
+                                    <span className="truncate">
+                                        {activePRs.length > 0
+                                            ? `Select from ${activePRs.length} active PR${activePRs.length === 1 ? "" : "s"}…`
+                                            : "No active PRs in connected repos"}
+                                    </span>
+                                )}
+                                <ChevronDown className={`h-4 w-4 ml-auto shrink-0 transition-transform ${prDropdownOpen ? "rotate-180" : ""}`} />
+                            </button>
+                            {prDropdownOpen && activePRs.length > 0 && (
+                                <div className="absolute top-full left-0 right-0 mt-1 z-50 max-h-60 overflow-y-auto rounded-lg border border-border/40 bg-[#0d1117] shadow-xl py-1">
+                                    {activePRs.map((pr) => (
+                                        <button
+                                            key={`${pr.repo_id}-${pr.number}`}
+                                            type="button"
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                handleSelectPR(pr);
+                                            }}
+                                            className="w-full text-left px-4 py-2 text-sm hover:bg-white/5 flex flex-col gap-0.5"
+                                        >
+                                            <span className="font-medium truncate">{pr.title}</span>
+                                            <span className="text-xs text-muted-foreground">
+                                                {pr.repo_full_name} #{pr.number} · {pr.author}
+                                            </span>
+                                        </button>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    </CardContent>
+                </Card>
+            )}
 
             {/* ── Repository Grid ──────────────────────────────────── */}
             {repos === null ? (
