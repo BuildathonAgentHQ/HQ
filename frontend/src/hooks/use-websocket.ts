@@ -55,7 +55,7 @@ export function useWebSocket(url: string): UseWebSocketReturn {
                     // Deduplicate: build a key from task_id + event_type + payload status
                     const payload = data.payload as Record<string, unknown> | undefined;
                     const status = payload?.status ?? payload?.message ?? "";
-                    const key = `${data.task_id}:${data.event_type}:${status}`;
+                    const key = `${data.task_id}:${data.event_type}:${status}:${data.timestamp}`;
                     if (seenKeysRef.current.has(key)) return;
                     seenKeysRef.current.add(key);
                     // Cap the seen-keys set size to prevent memory leaks

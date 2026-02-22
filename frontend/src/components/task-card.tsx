@@ -14,6 +14,7 @@ import {
     Pause,
     ChevronDown,
     ChevronUp,
+    AlertTriangle,
 } from "lucide-react";
 
 const STATUS_CONFIG: Record<
@@ -133,6 +134,21 @@ export function TaskCard({ task, events = [], onSelect }: TaskCardProps) {
                         )}
                     </span>
                 </div>
+
+                {/* ── Failure reason ────────────────────────────────────── */}
+                {task.status === "failed" && (() => {
+                    // Search events backward for the most relevant error message
+                    const failEvent = [...events].reverse().find(ev =>
+                        /error|fail|crash|exception|abort/i.test(ev.status)
+                    );
+                    const reason = failEvent?.status ?? "Task failed (no details available)";
+                    return (
+                        <div className="flex items-start gap-2 rounded-md bg-red-500/10 border border-red-500/20 px-3 py-2 mt-1">
+                            <AlertTriangle className="h-3.5 w-3.5 text-red-400 mt-0.5 shrink-0" />
+                            <p className="text-xs text-red-300 line-clamp-2">{reason}</p>
+                        </div>
+                    );
+                })()}
 
                 {/* ── Budget bar ───────────────────────────────────────── */}
                 <div className="space-y-1">

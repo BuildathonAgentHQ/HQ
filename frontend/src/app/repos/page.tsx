@@ -408,15 +408,7 @@ export default function ReposPage() {
                                         )}
                                         onClick={() => handleReAnalyze(repo)}
                                     />
-                                    <ActionBtn
-                                        icon={Eye}
-                                        label="View PRs"
-                                        onClick={() =>
-                                            router.push(
-                                                `/repos/${repo.id}/prs`
-                                            )
-                                        }
-                                    />
+
                                     <ActionBtn
                                         icon={Shield}
                                         label="Audit Repo"

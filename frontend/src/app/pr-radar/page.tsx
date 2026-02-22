@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/hooks/use-toast";
 import { API_BASE_URL, WS_URL } from "@/lib/constants";
@@ -29,6 +29,7 @@ import {
     Bug,
     Lock,
     Wrench,
+    ArrowUpDown,
 } from "lucide-react";
 
 // ── API helpers ────────────────────────────────────────────────────────────
@@ -107,6 +108,7 @@ export default function PRRadarPage() {
     const [testPreview, setTestPreview] = useState<TestPreviewState>({ status: "idle", prNumber: null, taskId: null, code: null });
     const [selectedPR, setSelectedPR] = useState<number | null>(null);
     const [repoId, setRepoId] = useState<string | null>(null);
+    const [sortMode, setSortMode] = useState<"criticality" | "time">("criticality");
 
     const fetchPRs = useCallback(async () => {
         try {
@@ -282,14 +284,26 @@ export default function PRRadarPage() {
 
     return (
         <div className="space-y-6">
-            <div>
-                <h1 className="text-2xl font-bold tracking-tight flex items-center gap-3">
-                    <GitPullRequest className="h-7 w-7 text-indigo-500" />
-                    PR Reviews
-                </h1>
-                <p className="text-sm text-muted-foreground mt-1">
-                    Heuristic risk analysis + Claude deep reviews of open pull requests
-                </p>
+            <div className="flex items-center justify-between">
+                <div>
+                    <h1 className="text-2xl font-bold tracking-tight flex items-center gap-3">
+                        <GitPullRequest className="h-7 w-7 text-indigo-500" />
+                        PR Reviews
+                    </h1>
+                    <p className="text-sm text-muted-foreground mt-1">
+                        Heuristic risk analysis + Claude deep reviews of open pull requests
+                    </p>
+                </div>
+                <div className="flex items-center gap-2">
+                    <span className="text-xs text-muted-foreground">Sort:</span>
+                    <button
+                        onClick={() => setSortMode(sortMode === "criticality" ? "time" : "criticality")}
+                        className="inline-flex items-center gap-1.5 rounded-lg border border-border/40 bg-card/60 px-3 py-1.5 text-xs font-medium text-slate-300 hover:bg-white/10 hover:text-white transition-colors"
+                    >
+                        <ArrowUpDown className="h-3 w-3" />
+                        {sortMode === "criticality" ? "Criticality" : "Recent"}
+                    </button>
+                </div>
             </div>
 
             {loading ? (
@@ -308,7 +322,13 @@ export default function PRRadarPage() {
                 </Card>
             ) : (
                 <div className="space-y-4">
-                    {prs.map((pr) => {
+                    {[...prs].sort((a, b) => {
+                        if (sortMode === "criticality") return b.risk_score - a.risk_score;
+                        // sort by time — use review timestamp if available, otherwise keep original order
+                        const aTime = a.review?.reviewed_at ? new Date(a.review.reviewed_at).getTime() : 0;
+                        const bTime = b.review?.reviewed_at ? new Date(b.review.reviewed_at).getTime() : 0;
+                        return bTime - aTime;
+                    }).map((pr) => {
                         const risk = RISK_CONFIG[pr.risk_level] ?? RISK_CONFIG.low;
                         const review = pr.review;
                         const verdict = review ? VERDICT_CONFIG[review.verdict] : null;

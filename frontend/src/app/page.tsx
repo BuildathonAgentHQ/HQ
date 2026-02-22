@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback, useMemo } from "react";
+import { useEffect, useState, useCallback, useMemo, useRef } from "react";
 import Link from "next/link";
 import { useWebSocket } from "@/hooks/use-websocket";
 import { API_BASE_URL, WS_URL } from "@/lib/constants";
@@ -11,7 +11,6 @@ import { ActivityStream } from "@/components/activity-stream";
 import { HealthRadar } from "@/components/health-radar";
 import { TaskCard } from "@/components/task-card";
 import { Leaderboard } from "@/components/leaderboard";
-import { TimelineSlider } from "@/components/timeline-slider";
 import { SwarmMonitor } from "@/components/swarm-monitor";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -24,6 +23,7 @@ import {
     Bot,
     ExternalLink,
     ArrowRight,
+    RefreshCw,
 } from "lucide-react";
 
 // ── API helpers ────────────────────────────────────────────────────────────
@@ -84,13 +84,26 @@ export default function DashboardPage() {
     const [repos, setRepos] = useState<Repository[] | null>(null);
     const [reviews, setReviews] = useState<PRReview[] | null>(null);
     const [swarms, setSwarms] = useState<SwarmPlan[] | null>(null);
+    const [refreshingTasks, setRefreshingTasks] = useState(false);
+
+    const refreshTasks = useCallback(async () => {
+        setRefreshingTasks(true);
+        try {
+            const data = await apiFetch<Task[]>("/tasks/");
+            setTasks(data);
+        } catch {
+            setTasks([]);
+        } finally {
+            setRefreshingTasks(false);
+        }
+    }, []);
 
     useEffect(() => {
-        apiFetch<Task[]>("/tasks/").then(setTasks).catch(() => setTasks([]));
+        refreshTasks();
         apiFetch<Repository[]>("/repos").then(setRepos).catch(() => setRepos([]));
         apiFetch<PRReview[]>("/control-plane/reviews/recent").then(setReviews).catch(() => setReviews([]));
         apiFetch<SwarmPlan[]>("/swarm/plans/active").then(setSwarms).catch(() => setSwarms([]));
-    }, []);
+    }, [refreshTasks]);
 
     // Group events by task_id for TaskCards
     const eventsByTask = useMemo(() => {
@@ -311,6 +324,14 @@ export default function DashboardPage() {
                                     {tasks.length}
                                 </Badge>
                             )}
+                            <button
+                                onClick={refreshTasks}
+                                disabled={refreshingTasks}
+                                className="ml-1 p-1 rounded-md text-muted-foreground hover:text-white hover:bg-white/5 transition-colors disabled:opacity-50"
+                                title="Refresh tasks"
+                            >
+                                <RefreshCw className={`h-3.5 w-3.5 ${refreshingTasks ? "animate-spin" : ""}`} />
+                            </button>
                         </CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-2 max-h-[400px] overflow-y-auto">
@@ -332,8 +353,7 @@ export default function DashboardPage() {
                 <Leaderboard />
             </div>
 
-            {/* ── Timeline ───────────────────────────────────────── */}
-            <TimelineSlider />
+
         </div>
     );
 }
