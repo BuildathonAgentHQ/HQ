@@ -182,7 +182,6 @@ app.add_middleware(
         settings.FRONTEND_URL,  # http://localhost:3000
         "http://localhost:3000",
         "http://localhost:3001",
-        "*",  # development fallback
     ],
     allow_credentials=True,
     allow_methods=["*"],

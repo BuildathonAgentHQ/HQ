@@ -35,18 +35,19 @@ const ENGINES = [
 ] as const;
 
 export default function RepoHealthPage() {
-    const { repos, loading: repoLoading } = useRepo();
+    const { repos, selectedRepoId, loading: repoLoading } = useRepo();
     const [healthData, setHealthData] = useState<any>(null);
     const [actionsData, setActionsData] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
 
     const fetchAll = useCallback(async () => {
+        if (!selectedRepoId) return;
         setRefreshing(true);
         try {
             const [healthRes, actionsRes] = await Promise.all([
-                fetch(`${API_BASE_URL}/control-plane/health`),
-                fetch(`${API_BASE_URL}/control-plane/actions`)
+                fetch(`${API_BASE_URL}/control-plane/health?repo_id=${selectedRepoId}`),
+                fetch(`${API_BASE_URL}/control-plane/actions?repo_id=${selectedRepoId}`)
             ]);
 
             if (healthRes.ok) setHealthData(await healthRes.json());

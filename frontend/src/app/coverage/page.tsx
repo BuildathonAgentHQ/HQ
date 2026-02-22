@@ -71,7 +71,7 @@ interface CoverageData {
 }
 
 export default function CoveragePage() {
-    const { repos, loading: repoLoading } = useRepo();
+    const { repos, selectedRepoId, loading: repoLoading } = useRepo();
     const [data, setData] = useState<CoverageData | null>(null);
     const [loading, setLoading] = useState(true);
     const [dispatching, setDispatching] = useState<string | null>(null);
@@ -82,9 +82,10 @@ export default function CoveragePage() {
     const getEngine = (key: string) => selectedEngines[key] ?? "claude-code";
 
     const fetchData = useCallback(async () => {
+        if (!selectedRepoId) return;
         setRefreshing(true);
         try {
-            const res = await fetch(`${API_BASE_URL}/control-plane/coverage`);
+            const res = await fetch(`${API_BASE_URL}/control-plane/coverage?repo_id=${selectedRepoId}`);
             if (res.ok) {
                 setData(await res.json());
             }
@@ -173,10 +174,10 @@ export default function CoveragePage() {
                     <CardContent className="p-0 text-center">
                         <div
                             className={`text-5xl font-black mb-1 ${(data?.line_coverage_pct ?? 0) > 80
-                                    ? "text-green-500"
-                                    : (data?.line_coverage_pct ?? 0) > 70
-                                        ? "text-yellow-500"
-                                        : "text-red-500"
+                                ? "text-green-500"
+                                : (data?.line_coverage_pct ?? 0) > 70
+                                    ? "text-yellow-500"
+                                    : "text-red-500"
                                 }`}
                         >
                             {data?.line_coverage_pct ?? 0}%
@@ -201,10 +202,10 @@ export default function CoveragePage() {
                     <CardContent className="p-0 text-center">
                         <div
                             className={`text-5xl font-black mb-1 ${(data?.total_coverage_pct ?? 0) > 70
-                                    ? "text-green-500"
-                                    : (data?.total_coverage_pct ?? 0) > 40
-                                        ? "text-yellow-500"
-                                        : "text-red-500"
+                                ? "text-green-500"
+                                : (data?.total_coverage_pct ?? 0) > 40
+                                    ? "text-yellow-500"
+                                    : "text-red-500"
                                 }`}
                         >
                             {testedFeatures}/{totalFeatures}
@@ -277,10 +278,10 @@ export default function CoveragePage() {
                                 <Badge
                                     variant="outline"
                                     className={`shrink-0 ml-4 ${pr.coverage_status === "covered"
-                                            ? "border-green-500/30 text-green-500 bg-green-500/10"
-                                            : pr.coverage_status === "partial"
-                                                ? "border-yellow-500/30 text-yellow-500 bg-yellow-500/10"
-                                                : "border-red-500/30 text-red-500 bg-red-500/10"
+                                        ? "border-green-500/30 text-green-500 bg-green-500/10"
+                                        : pr.coverage_status === "partial"
+                                            ? "border-yellow-500/30 text-yellow-500 bg-yellow-500/10"
+                                            : "border-red-500/30 text-red-500 bg-red-500/10"
                                         }`}
                                 >
                                     {pr.coverage_status === "covered"

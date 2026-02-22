@@ -115,12 +115,14 @@ export default function PRRadarPage() {
     const { repos, selectedRepoId, loading: repoLoading } = useRepo();
 
     const fetchPRs = useCallback(async (bypassCache = false) => {
+        if (!selectedRepoId) return;
         setLoading(true);
         try {
-            if (selectedRepoId) {
-                setRepoId(selectedRepoId);
-            }
-            const url = `${API_BASE_URL}/control-plane/prs${bypassCache ? "?refresh=true" : ""}`;
+            setRepoId(selectedRepoId);
+            const query = new URLSearchParams({ repo_id: selectedRepoId });
+            if (bypassCache) query.append("refresh", "true");
+
+            const url = `${API_BASE_URL}/control-plane/prs?${query.toString()}`;
             const res = await fetch(url);
             if (res.ok) {
                 const data = await res.json();
