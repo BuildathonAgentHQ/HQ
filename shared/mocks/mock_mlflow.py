@@ -51,6 +51,7 @@ class MockMLflowClient:
             "metrics": {},
             "params": {},
             "tags": {},
+            "artifacts": {},
         }
         if task_id:
             self.runs[run_id]["tags"]["task_id"] = task_id
@@ -108,6 +109,18 @@ class MockMLflowClient:
         if rid and rid in self.runs:
             self.runs[rid]["status"] = status
             self.runs[rid]["end_time"] = datetime.now(timezone.utc).isoformat()
+
+    def log_text(self, text: str, artifact_file: str, run_id: str | None = None) -> None:
+        """Mock storing text as an artifact."""
+        rid = run_id or self._latest_run_id()
+        if rid and rid in self.runs:
+            self.runs[rid]["artifacts"][artifact_file] = text
+
+    def get_artifact_text(self, artifact_file: str, run_id: str) -> str | None:
+        """Mock retrieving text from an artifact."""
+        if run_id in self.runs:
+            return self.runs[run_id]["artifacts"].get(artifact_file)
+        return None
 
     # ── Querying ────────────────────────────────────────────────────────────
 
